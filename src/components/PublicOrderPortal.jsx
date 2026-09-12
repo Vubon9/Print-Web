@@ -1,24 +1,24 @@
 import React, { useState } from 'react';
-import { ShoppingBag, CheckCircle, Send, Phone, User, Link, Search, MessageSquare, Printer, Tag } from 'lucide-react';
+import { ShoppingBag, CheckCircle, Send, Phone, User, Link, Search, MessageSquare, Tag, Check } from 'lucide-react';
 
 export default function PublicOrderPortal({ onSubmitClientOrder, jobs, currency }) {
-  const WHATSAPP_NUMBER = '8801700000000'; // Change to your official WhatsApp number
+  const [whatsAppNumber, setWhatsAppNumber] = useState('8801700000000'); // Default WhatsApp number
 
   const PRICING_LIST = [
-    { id: 'color_single', name: 'Color (Single Side)', rate: 5, desc: '5 TK per page' },
-    { id: 'bw_single', name: 'B&W (Single Side)', rate: 3, desc: '3 TK per page' },
-    { id: 'bw_both', name: 'B&W (Both Side)', rate: 5, desc: '5 TK per sheet' },
-    { id: 'color_both', name: 'Color (Both Side)', rate: 8, desc: '8 TK per sheet' },
+    { id: 'color_single', num: '1', name: 'Color (Single Side)', rate: 5, unit: 'per page', badge: '5 TK' },
+    { id: 'bw_single', num: '2', name: 'B&W (Single Side)', rate: 3, unit: 'per page', badge: '3 TK' },
+    { id: 'bw_both', num: '3', name: 'B&W (Both Side)', rate: 5, unit: 'per sheet', badge: '5 TK' },
+    { id: 'color_both', num: '4', name: 'Color (Both Side)', rate: 8, unit: 'per sheet', badge: '8 TK' },
   ];
 
   const [activeTabMode, setActiveTabMode] = useState('new'); // 'new' | 'track'
 
-  // New Order Form State
+  // Form State
   const [clientName, setClientName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [jobTitle, setJobTitle] = useState('');
-  const [printType, setPrintType] = useState('color_single');
+  const [selectedRateId, setSelectedRateId] = useState('color_single');
   const [pagesCount, setPagesCount] = useState(1);
   const [quantity, setQuantity] = useState(100);
   const [paperStock, setPaperStock] = useState('80gsm Offset Paper');
@@ -33,12 +33,8 @@ export default function PublicOrderPortal({ onSubmitClientOrder, jobs, currency 
   const [trackedJob, setTrackedJob] = useState(null);
   const [hasSearched, setHasSearched] = useState(false);
 
-  // Dynamic Rate & Price Calculation based on user's exact rates:
-  // 1. Color Single Side: 5 TK
-  // 2. B&W Single Side: 3 TK
-  // 3. B&W Both Side: 5 TK
-  // 4. Color Both Side: 8 TK
-  const selectedPriceItem = PRICING_LIST.find((p) => p.id === printType) || PRICING_LIST[0];
+  // Selected Rate Item
+  const selectedPriceItem = PRICING_LIST.find((p) => p.id === selectedRateId) || PRICING_LIST[0];
   const unitRate = selectedPriceItem.rate;
   const estimatedTotal = (Number(quantity) || 0) * (Number(pagesCount) || 1) * unitRate;
 
@@ -46,8 +42,8 @@ export default function PublicOrderPortal({ onSubmitClientOrder, jobs, currency 
     e.preventDefault();
     if (!clientName || !phone || !jobTitle) return;
 
-    const fullTitle = `${jobTitle} [${selectedPriceItem.name}]`;
-    const fullNotes = `Print Type: ${selectedPriceItem.name}. Pages: ${pagesCount}. Artwork: ${artworkLink || 'None provided'}. ${instructions || ''}`;
+    const fullTitle = `${jobTitle} (${selectedPriceItem.name})`;
+    const fullNotes = `Rate: ${selectedPriceItem.name} @ ${unitRate} TK. Pages: ${pagesCount}. Artwork: ${artworkLink || 'None provided'}. ${instructions || ''}`;
 
     const res = await onSubmitClientOrder({
       clientName,
@@ -68,19 +64,20 @@ export default function PublicOrderPortal({ onSubmitClientOrder, jobs, currency 
   };
 
   const handleWhatsAppOrder = () => {
-    const textMessage = `Hello Press Ledger! I want to place a print order:
+    const cleanNumber = whatsAppNumber.replace(/[^0-9]/g, '');
+    const textMessage = `Hello! I would like to place a print order via your website:
 - *Customer Name*: ${clientName || 'N/A'}
 - *Phone*: ${phone || 'N/A'}
 - *Job Description*: ${jobTitle || 'Print Order'}
-- *Print Type*: ${selectedPriceItem.name} (${selectedPriceItem.rate} TK)
+- *Print Rate*: ${selectedPriceItem.num}. ${selectedPriceItem.name} (${selectedPriceItem.rate} TK)
 - *Pages*: ${pagesCount}
 - *Quantity*: ${quantity} pcs
 - *Estimated Total*: ৳${estimatedTotal.toLocaleString()}
 - *Artwork Link*: ${artworkLink || 'N/A'}
-- *Special Instructions*: ${instructions || 'N/A'}`;
+- *Instructions*: ${instructions || 'N/A'}`;
 
     const encoded = encodeURIComponent(textMessage);
-    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encoded}`, '_blank');
+    window.open(`https://wa.me/${cleanNumber}?text=${encoded}`, '_blank');
   };
 
   const handleTrackSearch = (e) => {
@@ -184,49 +181,73 @@ export default function PublicOrderPortal({ onSubmitClientOrder, jobs, currency 
           border: '1px solid var(--accent-primary)'
         }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '0.75rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Tag size={20} style={{ color: 'var(--accent-primary)' }} />
-            <h3 style={{ fontSize: '1.05rem', margin: 0 }}>Official Printing Rates & Price List</h3>
+            <h3 style={{ fontSize: '1.05rem', margin: 0 }}>Official Printing Rate List</h3>
           </div>
 
-          <button
-            className="btn btn-success btn-sm"
-            style={{ background: '#25D366', color: '#fff', border: 'none' }}
-            onClick={handleWhatsAppOrder}
-          >
-            <MessageSquare size={16} /> Special Bulk Order? Chat on WhatsApp
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>WhatsApp Number:</span>
+            <input
+              type="text"
+              className="form-control form-control-sm"
+              style={{ width: '150px', fontSize: '0.8rem' }}
+              value={whatsAppNumber}
+              onChange={(e) => setWhatsAppNumber(e.target.value)}
+              placeholder="8801700000000"
+            />
+            <button
+              className="btn btn-success btn-sm"
+              style={{ background: '#25D366', color: '#fff', border: 'none' }}
+              onClick={handleWhatsAppOrder}
+            >
+              <MessageSquare size={14} /> WhatsApp Order
+            </button>
+          </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '0.75rem' }}>
-          <div style={{ background: 'var(--bg-primary)', padding: '0.75rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', textAlign: 'center' }}>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Color (Single Side)</div>
-            <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--accent-primary)' }}>5 TK</div>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>per page</div>
-          </div>
-
-          <div style={{ background: 'var(--bg-primary)', padding: '0.75rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', textAlign: 'center' }}>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>B&W (Single Side)</div>
-            <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--accent-primary)' }}>3 TK</div>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>per page</div>
-          </div>
-
-          <div style={{ background: 'var(--bg-primary)', padding: '0.75rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', textAlign: 'center' }}>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>B&W (Both Side)</div>
-            <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--accent-primary)' }}>5 TK</div>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>per sheet</div>
-          </div>
-
-          <div style={{ background: 'var(--bg-primary)', padding: '0.75rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', textAlign: 'center' }}>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Color (Both Side)</div>
-            <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--accent-primary)' }}>8 TK</div>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>per sheet</div>
-          </div>
+        {/* Clickable Pricing Cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+          {PRICING_LIST.map((item) => {
+            const isSelected = selectedRateId === item.id;
+            return (
+              <div
+                key={item.id}
+                onClick={() => setSelectedRateId(item.id)}
+                style={{
+                  background: isSelected ? 'var(--accent-gradient)' : 'var(--bg-primary)',
+                  color: isSelected ? '#ffffff' : 'var(--text-primary)',
+                  padding: '0.85rem',
+                  borderRadius: 'var(--radius-sm)',
+                  border: isSelected ? '1px solid var(--accent-primary)' : '1px solid var(--border-color)',
+                  cursor: 'pointer',
+                  textAlign: 'center',
+                  transition: 'all 0.2s ease',
+                  position: 'relative'
+                }}
+              >
+                {isSelected && (
+                  <div style={{ position: 'absolute', top: '6px', right: '6px', background: '#fff', color: 'var(--accent-primary)', borderRadius: '50%', padding: '2px' }}>
+                    <Check size={12} />
+                  </div>
+                )}
+                <div style={{ fontSize: '0.75rem', opacity: isSelected ? 0.9 : 0.7, fontWeight: 700 }}>
+                  {item.num}. {item.name}
+                </div>
+                <div style={{ fontSize: '1.4rem', fontWeight: 800, margin: '0.2rem 0' }}>
+                  {item.badge}
+                </div>
+                <div style={{ fontSize: '0.7rem', opacity: isSelected ? 0.9 : 0.7 }}>
+                  {item.unit}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
-      {/* Sub Header Navigation: Place Order vs Track Order */}
+      {/* Navigation: Place Order vs Track Order */}
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
         <button
           className={`btn ${activeTabMode === 'new' ? 'btn-primary' : 'btn-secondary'}`}
@@ -261,7 +282,7 @@ export default function PublicOrderPortal({ onSubmitClientOrder, jobs, currency 
             <div>
               <h2 style={{ fontSize: '1.3rem', margin: 0 }}>Online Print Order Form</h2>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>
-                Select print rates and submit your job directly to our press queue or WhatsApp!
+                Selected Rate: <strong>{selectedPriceItem.num}. {selectedPriceItem.name} ({selectedPriceItem.badge})</strong>
               </p>
             </div>
           </div>
@@ -270,7 +291,7 @@ export default function PublicOrderPortal({ onSubmitClientOrder, jobs, currency 
             {/* Customer Details */}
             <div style={{ background: 'var(--bg-primary)', padding: '1rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', marginBottom: '1.25rem' }}>
               <h4 style={{ fontSize: '0.85rem', color: 'var(--accent-primary)', marginBottom: '0.75rem', textTransform: 'uppercase' }}>
-                1. Customer & Contact Details
+                1. Customer & Contact Information
               </h4>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
@@ -322,7 +343,7 @@ export default function PublicOrderPortal({ onSubmitClientOrder, jobs, currency 
             {/* Order Specifications */}
             <div style={{ background: 'var(--bg-primary)', padding: '1rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', marginBottom: '1.25rem' }}>
               <h4 style={{ fontSize: '0.85rem', color: 'var(--accent-primary)', marginBottom: '0.75rem', textTransform: 'uppercase' }}>
-                2. Print Specifications & Select Rate
+                2. Print Specifications & Quantities
               </h4>
 
               <div className="form-group">
@@ -330,7 +351,7 @@ export default function PublicOrderPortal({ onSubmitClientOrder, jobs, currency 
                 <input
                   type="text"
                   className="form-control"
-                  placeholder="e.g. Brochure / Document Printing / Cash Memo"
+                  placeholder="e.g. Brochure / Cash Memo / Document Printing / Packaging Box"
                   value={jobTitle}
                   onChange={(e) => setJobTitle(e.target.value)}
                   required
@@ -339,18 +360,18 @@ export default function PublicOrderPortal({ onSubmitClientOrder, jobs, currency 
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
                 <div className="form-group">
-                  <label>Select Print Rate & Type *</label>
-                  <select className="form-select" value={printType} onChange={(e) => setPrintType(e.target.value)}>
+                  <label>Selected Printing Rate Option *</label>
+                  <select className="form-select" value={selectedRateId} onChange={(e) => setSelectedRateId(e.target.value)}>
                     {PRICING_LIST.map((item) => (
                       <option key={item.id} value={item.id}>
-                        {item.name} - {item.desc}
+                        {item.num}. {item.name} - {item.badge} ({item.unit})
                       </option>
                     ))}
                   </select>
                 </div>
 
                 <div className="form-group">
-                  <label>Number of Pages per Copy</label>
+                  <label>Number of Pages</label>
                   <input
                     type="number"
                     className="form-control"
@@ -423,7 +444,7 @@ export default function PublicOrderPortal({ onSubmitClientOrder, jobs, currency 
               </div>
             </div>
 
-            {/* Live Price Estimation Box based on rates */}
+            {/* Live Price Estimation Box based on selected rate */}
             <div
               style={{
                 display: 'flex',
@@ -443,7 +464,7 @@ export default function PublicOrderPortal({ onSubmitClientOrder, jobs, currency 
                 </div>
               </div>
               <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textAlign: 'right' }}>
-                Rate: <strong>{unitRate} TK</strong> ({selectedPriceItem.name})
+                Rate: <strong>{selectedPriceItem.badge}</strong> ({selectedPriceItem.name})
               </div>
             </div>
 
