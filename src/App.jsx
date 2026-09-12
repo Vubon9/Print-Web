@@ -2,13 +2,9 @@ import React, { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Dashboard from './components/Dashboard';
-import PrintEstimator from './components/PrintEstimator';
 import JobOrders from './components/JobOrders';
 import ClientLedger from './components/ClientLedger';
 import Invoices from './components/Invoices';
-import Inventory from './components/Inventory';
-import GeneralLedger from './components/GeneralLedger';
-import Settings from './components/Settings';
 import PrintModal from './components/PrintModal';
 
 import { api } from './utils/api';
@@ -16,12 +12,9 @@ import './App.css';
 
 function App() {
   const [appData, setAppData] = useState({
-    settings: {},
     jobs: [],
     clients: [],
     invoices: [],
-    inventory: [],
-    ledger: [],
   });
   const [activeTab, setActiveTab] = useState('dashboard');
   const [theme, setTheme] = useState('dark');
@@ -34,9 +27,9 @@ function App() {
   // New Job Form State
   const [jobTitle, setJobTitle] = useState('');
   const [jobClientId, setJobClientId] = useState('');
-  const [jobType, setJobType] = useState('Flyer');
-  const [jobPaper, setJobPaper] = useState('150gsm Art Paper (23" x 36")');
-  const [jobFinishedSize, setJobFinishedSize] = useState('A4 (8.27" x 11.69")');
+  const [jobType, setJobType] = useState('General Printing');
+  const [jobPaper, setJobPaper] = useState('150gsm Art Paper');
+  const [jobFinishedSize, setJobFinishedSize] = useState('A4');
   const [jobQuantity, setJobQuantity] = useState(1000);
   const [jobCost, setJobCost] = useState(500);
   const [jobAdvancePaid, setJobAdvancePaid] = useState(0);
@@ -50,7 +43,7 @@ function App() {
   const [clientEmail, setClientEmail] = useState('');
   const [clientAddress, setClientAddress] = useState('');
 
-  // Initial Load from API
+  // Initial Load from Fullstack API
   const refreshData = async () => {
     const data = await api.loadAllData();
     setAppData(data);
@@ -84,7 +77,6 @@ function App() {
     e.preventDefault();
     const selectedClient = appData.clients.find((c) => c.id === jobClientId) || appData.clients[0];
     
-    // If no client exists, prompt to create client first
     if (!selectedClient) {
       alert('Please add a Client first before creating a Job Order!');
       setNewClientModalOpen(true);
@@ -98,7 +90,6 @@ function App() {
       jobType,
       paper: jobPaper,
       finishedSize: jobFinishedSize,
-      pages: 1,
       quantity: Number(jobQuantity),
       totalCost: Number(jobCost),
       advancePaid: Number(jobAdvancePaid) || 0,
@@ -138,40 +129,15 @@ function App() {
     await refreshData();
   };
 
-  const handleUpdateStock = async (itemId, addQty) => {
-    await api.updateInventoryStock(itemId, addQty);
-    await refreshData();
-  };
-
-  const handleAddInventoryItem = async (newItem) => {
-    await api.addInventoryItem(newItem);
-    await refreshData();
-  };
-
-  const handleAddLedgerEntry = async (newEntry) => {
-    await api.addLedgerEntry(newEntry);
-    await refreshData();
-  };
-
-  const handleSaveSettings = async (newSettings) => {
-    await api.saveSettings(newSettings);
-    await refreshData();
-  };
-
-  const handleResetData = async () => {
-    await api.resetData();
-    await refreshData();
-  };
-
-  const currencySymbol = appData.settings?.currency || '৳';
+  const currencySymbol = '৳';
 
   return (
     <div className="app-container">
-      {/* Sidebar */}
+      {/* Sidebar - Only 4 Core Modules */}
       <Sidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
-        companyName={appData.settings?.companyName}
+        companyName="Press Ledger"
       />
 
       {/* Main Content Area */}
@@ -186,34 +152,22 @@ function App() {
         />
 
         <main className="content-body">
+          {/* Module 1: Dashboard */}
           {activeTab === 'dashboard' && (
             <Dashboard
-              jobs={appData.jobs}
-              clients={appData.clients}
-              invoices={appData.invoices}
-              inventory={appData.inventory}
-              ledger={appData.ledger}
+              jobs={appData.jobs || []}
+              clients={appData.clients || []}
+              invoices={appData.invoices || []}
               currency={currencySymbol}
               setActiveTab={setActiveTab}
               onSelectJob={(job) => setPrintModalState({ open: true, type: 'ticket', data: job })}
             />
           )}
 
-          {activeTab === 'estimator' && (
-            <PrintEstimator
-              clients={appData.clients}
-              settings={appData.settings}
-              currency={currencySymbol}
-              onCreateJobFromQuote={async (jobObj) => {
-                await handleCreateJob(jobObj);
-                setActiveTab('jobs');
-              }}
-            />
-          )}
-
+          {/* Module 2: Job Orders */}
           {activeTab === 'jobs' && (
             <JobOrders
-              jobs={appData.jobs}
+              jobs={appData.jobs || []}
               currency={currencySymbol}
               onUpdateJobStage={handleUpdateJobStage}
               onDeleteJob={handleDeleteJob}
@@ -223,11 +177,11 @@ function App() {
             />
           )}
 
+          {/* Module 3: Client Accounts */}
           {activeTab === 'clients' && (
             <ClientLedger
-              clients={appData.clients}
-              invoices={appData.invoices}
-              ledger={appData.ledger}
+              clients={appData.clients || []}
+              invoices={appData.invoices || []}
               currency={currencySymbol}
               onOpenNewClient={() => setNewClientModalOpen(true)}
               onRecordPayment={handleRecordPayment}
@@ -235,9 +189,10 @@ function App() {
             />
           )}
 
+          {/* Module 4: Invoices & Billing */}
           {activeTab === 'invoices' && (
             <Invoices
-              invoices={appData.invoices}
+              invoices={appData.invoices || []}
               currency={currencySymbol}
               onOpenInvoiceModal={(inv) => setPrintModalState({ open: true, type: 'invoice', data: inv })}
               onPayDue={() => {
@@ -245,51 +200,26 @@ function App() {
               }}
             />
           )}
-
-          {activeTab === 'inventory' && (
-            <Inventory
-              inventory={appData.inventory}
-              currency={currencySymbol}
-              onUpdateStock={handleUpdateStock}
-              onAddInventoryItem={handleAddInventoryItem}
-            />
-          )}
-
-          {activeTab === 'ledger' && (
-            <GeneralLedger
-              ledger={appData.ledger}
-              currency={currencySymbol}
-              onAddLedgerEntry={handleAddLedgerEntry}
-            />
-          )}
-
-          {activeTab === 'settings' && (
-            <Settings
-              settings={appData.settings}
-              onSaveSettings={handleSaveSettings}
-              onClearAllData={handleResetData}
-            />
-          )}
         </main>
       </div>
 
-      {/* New Job Modal */}
+      {/* New Job Modal (Simple Order Record & Due System) */}
       {newJobModalOpen && (
         <div className="modal-overlay" onClick={() => setNewJobModalOpen(false)}>
           <div className="modal-content modal-lg" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Create New Job Order (Taking Record & Due System)</h3>
+              <h3>Take New Job Record (Order & Due Record)</h3>
               <button className="modal-close-btn" onClick={() => setNewJobModalOpen(false)}>×</button>
             </div>
 
             <form onSubmit={handleCreateJobSubmit}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div className="form-group">
-                  <label>Job Title / Product Name</label>
+                  <label>Job Title / Product Description</label>
                   <input
                     type="text"
                     className="form-control"
-                    placeholder="e.g. 5,000 Pcs Poster / Catalogue"
+                    placeholder="e.g. 5,000 Pcs Flyer / Cash Memo"
                     value={jobTitle}
                     onChange={(e) => setJobTitle(e.target.value)}
                     required
@@ -298,7 +228,7 @@ function App() {
 
                 <div className="form-group">
                   <label>Select Client</label>
-                  {appData.clients.length === 0 ? (
+                  {(appData.clients || []).length === 0 ? (
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
                       <input type="text" className="form-control" placeholder="No client found. Add new!" disabled />
                       <button
@@ -315,7 +245,7 @@ function App() {
                       value={jobClientId}
                       onChange={(e) => setJobClientId(e.target.value)}
                     >
-                      {appData.clients.map((c) => (
+                      {(appData.clients || []).map((c) => (
                         <option key={c.id} value={c.id}>
                           {c.name} (Phone: {c.phone || 'N/A'})
                         </option>
@@ -327,7 +257,7 @@ function App() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
                 <div className="form-group">
-                  <label>Job Category</label>
+                  <label>Category</label>
                   <select className="form-select" value={jobType} onChange={(e) => setJobType(e.target.value)}>
                     <option value="Flyer">Flyer / Banner</option>
                     <option value="Booklet / Catalog">Booklet / Catalog</option>
@@ -358,10 +288,10 @@ function App() {
                 </div>
               </div>
 
-              {/* Cost, Advance Paid & Due Calculation Box */}
+              {/* Order Cost & Advance Paid Box */}
               <div style={{ background: 'var(--bg-primary)', padding: '1rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', margin: '1rem 0' }}>
                 <h4 style={{ fontSize: '0.9rem', marginBottom: '0.75rem', color: 'var(--accent-primary)' }}>
-                  Financial Record (Pay & Due Calculation)
+                  Financial Record (Total Price, Advance Paid & Calculated Due)
                 </h4>
                 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
@@ -424,13 +354,13 @@ function App() {
               </div>
 
               <div className="form-group">
-                <label>Special Machine & Finishing Notes</label>
+                <label>Special Instructions</label>
                 <textarea
                   className="form-control"
                   rows="2"
                   value={jobNotes}
                   onChange={(e) => setJobNotes(e.target.value)}
-                  placeholder="e.g. Gloss lamination on cover. 4/4 CMYK."
+                  placeholder="e.g. Gloss lamination on cover. Double sided."
                 ></textarea>
               </div>
 
@@ -439,7 +369,7 @@ function App() {
                   Cancel
                 </button>
                 <button type="submit" className="btn btn-primary">
-                  Save Order Record & Update Ledger
+                  Save Order Record & Update Account Due
                 </button>
               </div>
             </form>
@@ -462,7 +392,7 @@ function App() {
                 <input
                   type="text"
                   className="form-control"
-                  placeholder="e.g. Acme Printing Press Client"
+                  placeholder="e.g. Acme Printing Client"
                   value={clientName}
                   onChange={(e) => setClientName(e.target.value)}
                   required
@@ -529,7 +459,7 @@ function App() {
         <PrintModal
           type={printModalState.type}
           data={printModalState.data}
-          settings={appData.settings}
+          settings={{ companyName: 'Press Ledger', currency: '৳' }}
           onClose={() => setPrintModalState({ open: false, type: null, data: null })}
         />
       )}

@@ -1,27 +1,42 @@
 /**
- * Backend API Service Abstraction Layer for Press Ledger
- * 
- * Provides async REST/API functions for Jobs, Clients, Invoices, Payments, Inventory & General Ledger.
- * Currently backed by LocalStorage, fully structured for seamless transition to Express/Node.js or Python backend.
+ * Fullstack API Integration Utility for Press Ledger
+ * Connects to Express REST API endpoints (/api/*) with client storage fallback for GitHub Pages.
  */
 
 import {
   loadAllAppData,
   saveStoredData,
-  STORAGE_KEYS,
-  clearAllAppData,
-  DEFAULT_SETTINGS
+  STORAGE_KEYS
 } from './storage';
 
-// Simulated API delay (ms) for realistic async behavior (set to 0 for instant local execution)
-const API_DELAY = 0;
+const API_BASE = '/api';
 
-const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+async function fetchJSON(url, options = {}) {
+  try {
+    const res = await fetch(`${API_BASE}${url}`, {
+      headers: { 'Content-Type': 'application/json' },
+      ...options,
+    });
+    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.warn(`Backend server endpoint unavailable at ${url}, using local storage storage layer.`, err.message);
+    return null;
+  }
+}
 
 export const api = {
-  // Fetch initial app data bundle from backend
+  // Load All Data
   async loadAllData() {
-    await delay(API_DELAY);
+    const jobs = await fetchJSON('/jobs');
+    const clients = await fetchJSON('/clients');
+    const invoices = await fetchJSON('/invoices');
+
+    if (jobs && clients && invoices) {
+      return { jobs, clients, invoices };
+    }
+
+    // Fallback to local storage
     return loadAllAppData();
   },
 
@@ -29,15 +44,20 @@ export const api = {
   // JOB ORDERS API
   // ----------------------------------------------------
   async getJobs() {
-    await delay(API_DELAY);
-    const data = loadAllAppData();
-    return data.jobs;
+    const jobs = await fetchJSON('/jobs');
+    if (jobs) return jobs;
+    return loadAllAppData().jobs;
   },
 
   async createJob(jobPayload) {
-    await delay(API_DELAY);
-    const data = loadAllAppData();
+    const res = await fetchJSON('/jobs', {
+      method: 'POST',
+      body: JSON.stringify(jobPayload),
+    });
+    if (res) return res;
 
+    // Fallback local execution
+    const data = loadAllAppData();
     const jobId = `PL-${Date.now().toString().slice(-4)}`;
     const jobNo = `JOB-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`;
     const createdDate = new Date().toISOString().split('T')[0];
@@ -49,27 +69,24 @@ export const api = {
     const newJob = {
       id: jobId,
       jobNo: jobNo,
-      title: jobPayload.title || 'Untitled Job',
+      title: jobPayload.title || 'Untitled Order',
       clientId: jobPayload.clientId,
       clientName: jobPayload.clientName,
       jobType: jobPayload.jobType || 'General Printing',
       paper: jobPayload.paper || 'Standard Paper',
       finishedSize: jobPayload.finishedSize || 'A4',
-      pages: Number(jobPayload.pages) || 1,
       quantity: Number(jobPayload.quantity) || 1000,
       totalCost: totalCost,
       advancePaid: advancePaid,
       dueAmount: dueAmount,
-      stage: jobPayload.stage || 'Pending', // Pending, Printing, Delivery, Delivered
+      stage: 'Pending',
       deliveryDate: jobPayload.deliveryDate || createdDate,
       createdDate: createdDate,
       notes: jobPayload.notes || '',
     };
 
-    const updatedJobs = [newJob, ...data.jobs];
-    saveStoredData(STORAGE_KEYS.JOBS, updatedJobs);
+    saveStoredData(STORAGE_KEYS.JOBS, [newJob, ...data.jobs]);
 
-    // Create corresponding Invoice (No Tax)
     const newInvoice = {
       id: `INV-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`,
       jobId: newJob.id,
@@ -93,7 +110,6 @@ export const api = {
     };
     saveStoredData(STORAGE_KEYS.INVOICES, [newInvoice, ...data.invoices]);
 
-    // Update Client Account Balance (Billed & Paid)
     const updatedClients = data.clients.map((c) => {
       if (c.id === newJob.clientId) {
         const newBilled = (c.totalBilled || 0) + totalCost;
@@ -105,25 +121,16 @@ export const api = {
     });
     saveStoredData(STORAGE_KEYS.CLIENTS, updatedClients);
 
-    // If advance payment was made, log in General Ledger
-    if (advancePaid > 0) {
-      const newLedgerEntry = {
-        id: `LED-${Date.now().toString().slice(-4)}`,
-        date: createdDate,
-        type: 'Income',
-        category: 'Advance Payment',
-        description: `Advance for Job #${newJob.jobNo} (${newJob.clientName})`,
-        amount: advancePaid,
-        reference: newInvoice.id,
-      };
-      saveStoredData(STORAGE_KEYS.LEDGER, [newLedgerEntry, ...data.ledger]);
-    }
-
     return newJob;
   },
 
   async updateJobStage(jobId, newStage) {
-    await delay(API_DELAY);
+    const res = await fetchJSON(`/jobs/${jobId}/stage`, {
+      method: 'PATCH',
+      body: JSON.stringify({ stage: newStage }),
+    });
+    if (res) return res;
+
     const data = loadAllAppData();
     const updatedJobs = data.jobs.map((j) => (j.id === jobId ? { ...j, stage: newStage } : j));
     saveStoredData(STORAGE_KEYS.JOBS, updatedJobs);
@@ -131,7 +138,11 @@ export const api = {
   },
 
   async deleteJob(jobId) {
-    await delay(API_DELAY);
+    const res = await fetchJSON(`/jobs/${jobId}`, {
+      method: 'DELETE',
+    });
+    if (res) return res;
+
     const data = loadAllAppData();
     const updatedJobs = data.jobs.filter((j) => j.id !== jobId);
     saveStoredData(STORAGE_KEYS.JOBS, updatedJobs);
@@ -139,16 +150,27 @@ export const api = {
   },
 
   // ----------------------------------------------------
-  // CLIENT ACCOUNTS & PAYMENTS API
+  // CLIENT ACCOUNTS API
   // ----------------------------------------------------
+  async getClients() {
+    const clients = await fetchJSON('/clients');
+    if (clients) return clients;
+    return loadAllAppData().clients;
+  },
+
   async createClient(clientPayload) {
-    await delay(API_DELAY);
+    const res = await fetchJSON('/clients', {
+      method: 'POST',
+      body: JSON.stringify(clientPayload),
+    });
+    if (res) return res;
+
     const data = loadAllAppData();
     const newClient = {
       id: `C-${Date.now().toString().slice(-4)}`,
       name: clientPayload.name,
       contactPerson: clientPayload.contactPerson || '',
-      phone: clientPayload.phone || '',
+      phone: clientPhone || clientPayload.phone || '',
       email: clientPayload.email || '',
       address: clientPayload.address || '',
       totalBilled: 0,
@@ -156,20 +178,25 @@ export const api = {
       balance: 0,
     };
 
-    const updatedClients = [newClient, ...data.clients];
-    saveStoredData(STORAGE_KEYS.CLIENTS, updatedClients);
+    saveStoredData(STORAGE_KEYS.CLIENTS, [newClient, ...data.clients]);
     return newClient;
   },
 
-  async recordPayment({ clientId, amount, method, reference, notes, date }) {
-    await delay(API_DELAY);
-    const data = loadAllAppData();
-    const paymentAmt = Number(amount) || 0;
-    const payDate = date || new Date().toISOString().split('T')[0];
+  // ----------------------------------------------------
+  // PAYMENTS & PAY DUE API
+  // ----------------------------------------------------
+  async recordPayment(payData) {
+    const res = await fetchJSON('/payments', {
+      method: 'POST',
+      body: JSON.stringify(payData),
+    });
+    if (res) return res;
 
-    // 1. Update Client Record
+    const data = loadAllAppData();
+    const paymentAmt = Number(payData.amount) || 0;
+
     const updatedClients = data.clients.map((c) => {
-      if (c.id === clientId) {
+      if (c.id === payData.clientId) {
         const newPaid = (c.totalPaid || 0) + paymentAmt;
         const newBal = Math.max(0, (c.balance || 0) - paymentAmt);
         return { ...c, totalPaid: newPaid, balance: newBal };
@@ -178,10 +205,9 @@ export const api = {
     });
     saveStoredData(STORAGE_KEYS.CLIENTS, updatedClients);
 
-    // 2. Settle Client Invoices (FIFO)
     let remaining = paymentAmt;
     const updatedInvoices = data.invoices.map((inv) => {
-      if (inv.clientId === clientId && inv.balance > 0 && remaining > 0) {
+      if (inv.clientId === payData.clientId && inv.balance > 0 && remaining > 0) {
         const payVal = Math.min(inv.balance, remaining);
         remaining -= payVal;
         const newPaid = inv.paidAmount + payVal;
@@ -197,10 +223,9 @@ export const api = {
     });
     saveStoredData(STORAGE_KEYS.INVOICES, updatedInvoices);
 
-    // 3. Settle Client Jobs Due Amount
     let jobRemaining = paymentAmt;
     const updatedJobs = data.jobs.map((j) => {
-      if (j.clientId === clientId && j.dueAmount > 0 && jobRemaining > 0) {
+      if (j.clientId === payData.clientId && j.dueAmount > 0 && jobRemaining > 0) {
         const payVal = Math.min(j.dueAmount, jobRemaining);
         jobRemaining -= payVal;
         return {
@@ -213,87 +238,6 @@ export const api = {
     });
     saveStoredData(STORAGE_KEYS.JOBS, updatedJobs);
 
-    // 4. Log Income in General Ledger
-    const targetClient = data.clients.find((c) => c.id === clientId);
-    const newLedgerEntry = {
-      id: `LED-${Date.now().toString().slice(-4)}`,
-      date: payDate,
-      type: 'Income',
-      category: 'Client Due Payment',
-      description: `Payment from ${targetClient?.name || 'Client'} (${method})`,
-      amount: paymentAmt,
-      reference: reference || `PAY-${Date.now().toString().slice(-4)}`,
-    };
-    saveStoredData(STORAGE_KEYS.LEDGER, [newLedgerEntry, ...data.ledger]);
-
-    return loadAllAppData();
-  },
-
-  // ----------------------------------------------------
-  // GENERAL LEDGER & EXPENSES API
-  // ----------------------------------------------------
-  async addLedgerEntry(entryPayload) {
-    await delay(API_DELAY);
-    const data = loadAllAppData();
-    const newEntry = {
-      id: `LED-${Date.now().toString().slice(-4)}`,
-      date: entryPayload.date || new Date().toISOString().split('T')[0],
-      type: entryPayload.type || 'Expense',
-      category: entryPayload.category || 'General',
-      description: entryPayload.description,
-      amount: Number(entryPayload.amount) || 0,
-      reference: entryPayload.reference || '',
-    };
-
-    const updatedLedger = [newEntry, ...data.ledger];
-    saveStoredData(STORAGE_KEYS.LEDGER, updatedLedger);
-    return updatedLedger;
-  },
-
-  // ----------------------------------------------------
-  // INVENTORY API
-  // ----------------------------------------------------
-  async updateInventoryStock(itemId, addQty) {
-    await delay(API_DELAY);
-    const data = loadAllAppData();
-    const updatedInventory = data.inventory.map((item) =>
-      item.id === itemId ? { ...item, stock: item.stock + addQty } : item
-    );
-    saveStoredData(STORAGE_KEYS.INVENTORY, updatedInventory);
-    return updatedInventory;
-  },
-
-  async addInventoryItem(itemPayload) {
-    await delay(API_DELAY);
-    const data = loadAllAppData();
-    const newItem = {
-      id: `INV-${Date.now().toString().slice(-4)}`,
-      name: itemPayload.name,
-      category: itemPayload.category || 'Paper',
-      stock: Number(itemPayload.stock) || 0,
-      unit: itemPayload.unit || 'Units',
-      minStock: Number(itemPayload.minStock) || 5,
-      unitPrice: Number(itemPayload.unitPrice) || 0,
-    };
-    const updatedInventory = [...data.inventory, newItem];
-    saveStoredData(STORAGE_KEYS.INVENTORY, updatedInventory);
-    return updatedInventory;
-  },
-
-  // ----------------------------------------------------
-  // SETTINGS API
-  // ----------------------------------------------------
-  async saveSettings(newSettings) {
-    await delay(API_DELAY);
-    const data = loadAllAppData();
-    const updated = { ...data.settings, ...newSettings };
-    saveStoredData(STORAGE_KEYS.SETTINGS, updated);
-    return updated;
-  },
-
-  async resetData() {
-    await delay(API_DELAY);
-    clearAllAppData();
     return loadAllAppData();
   }
 };

@@ -1,20 +1,15 @@
 import React from 'react';
-import { Sun, Moon, Plus, Calculator, UserPlus, Printer } from 'lucide-react';
+import { Sun, Moon, Plus, UserPlus } from 'lucide-react';
 
 const TAB_TITLES = {
   dashboard: 'Press Executive Dashboard',
-  estimator: 'Print Job Cost Estimator & Quote Generator',
-  jobs: 'Job Orders & Production Pipeline',
-  clients: 'Client Accounts & Debit/Credit Ledger',
+  jobs: 'Job Orders & Due Tracking',
+  clients: 'Client Accounts & Pay Ledger',
   invoices: 'Invoices & Billing Receipts',
-  inventory: 'Paper, Ink & Material Inventory',
-  ledger: 'General Ledger & Financial Statements',
-  settings: 'Press Configuration & Default Rates',
 };
 
 export default function Header({
   activeTab,
-  setActiveTab,
   theme,
   setTheme,
   onOpenNewJob,
@@ -27,16 +22,6 @@ export default function Header({
       </div>
 
       <div className="header-right">
-        {activeTab !== 'estimator' && (
-          <button
-            className="btn btn-outline btn-sm"
-            onClick={() => setActiveTab('estimator')}
-          >
-            <Calculator size={16} />
-            <span>Quick Quote</span>
-          </button>
-        )}
-
         <button className="btn btn-secondary btn-sm" onClick={onOpenNewClient}>
           <UserPlus size={16} />
           <span>New Client</span>

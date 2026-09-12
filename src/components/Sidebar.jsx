@@ -1,25 +1,17 @@
 import React from 'react';
 import {
   LayoutDashboard,
-  Calculator,
   Printer,
   Users,
   FileText,
-  Package,
-  BookOpen,
-  Settings,
   Layers
 } from 'lucide-react';
 
 const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'estimator', label: 'Print Estimator', icon: Calculator },
   { id: 'jobs', label: 'Job Orders', icon: Printer },
   { id: 'clients', label: 'Client Accounts', icon: Users },
   { id: 'invoices', label: 'Invoices & Billing', icon: FileText },
-  { id: 'inventory', label: 'Paper & Inventory', icon: Package },
-  { id: 'ledger', label: 'General Ledger', icon: BookOpen },
-  { id: 'settings', label: 'Press Settings', icon: Settings },
 ];
 
 export default function Sidebar({ activeTab, setActiveTab, companyName }) {
@@ -31,7 +23,7 @@ export default function Sidebar({ activeTab, setActiveTab, companyName }) {
         </div>
         <div>
           <div className="sidebar-title">Press Ledger</div>
-          <div className="sidebar-subtitle">{companyName || 'Print Management'}</div>
+          <div className="sidebar-subtitle">{companyName || 'Order & Payment Tracker'}</div>
         </div>
       </div>
 
@@ -53,7 +45,7 @@ export default function Sidebar({ activeTab, setActiveTab, companyName }) {
       </nav>
 
       <div className="sidebar-footer">
-        <span>Press Ledger v2.4</span>
+        <span>Fullstack API</span>
         <span className="badge badge-success">Online</span>
       </div>
     </aside>
