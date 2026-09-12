@@ -1,7 +1,16 @@
 import React, { useState } from 'react';
-import { ShoppingBag, CheckCircle, Send, Phone, User, Link, Search, Clock, Printer } from 'lucide-react';
+import { ShoppingBag, CheckCircle, Send, Phone, User, Link, Search, MessageSquare, Printer, Tag } from 'lucide-react';
 
 export default function PublicOrderPortal({ onSubmitClientOrder, jobs, currency }) {
+  const WHATSAPP_NUMBER = '8801700000000'; // Change to your official WhatsApp number
+
+  const PRICING_LIST = [
+    { id: 'color_single', name: 'Color (Single Side)', rate: 5, desc: '5 TK per page' },
+    { id: 'bw_single', name: 'B&W (Single Side)', rate: 3, desc: '3 TK per page' },
+    { id: 'bw_both', name: 'B&W (Both Side)', rate: 5, desc: '5 TK per sheet' },
+    { id: 'color_both', name: 'Color (Both Side)', rate: 8, desc: '8 TK per sheet' },
+  ];
+
   const [activeTabMode, setActiveTabMode] = useState('new'); // 'new' | 'track'
 
   // New Order Form State
@@ -9,9 +18,10 @@ export default function PublicOrderPortal({ onSubmitClientOrder, jobs, currency 
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [jobTitle, setJobTitle] = useState('');
-  const [category, setCategory] = useState('Flyer');
-  const [quantity, setQuantity] = useState(1000);
-  const [paperStock, setPaperStock] = useState('150gsm Art Paper');
+  const [printType, setPrintType] = useState('color_single');
+  const [pagesCount, setPagesCount] = useState(1);
+  const [quantity, setQuantity] = useState(100);
+  const [paperStock, setPaperStock] = useState('80gsm Offset Paper');
   const [artworkLink, setArtworkLink] = useState('');
   const [deliveryDate, setDeliveryDate] = useState(new Date().toISOString().split('T')[0]);
   const [instructions, setInstructions] = useState('');
@@ -23,31 +33,54 @@ export default function PublicOrderPortal({ onSubmitClientOrder, jobs, currency 
   const [trackedJob, setTrackedJob] = useState(null);
   const [hasSearched, setHasSearched] = useState(false);
 
-  // Estimated Price Calculation
-  const estimatedUnitPrice = category === 'Business Cards' ? 0.3 : category === 'Booklet / Catalog' ? 3.5 : 0.6;
-  const estimatedTotal = (Number(quantity) || 0) * estimatedUnitPrice;
+  // Dynamic Rate & Price Calculation based on user's exact rates:
+  // 1. Color Single Side: 5 TK
+  // 2. B&W Single Side: 3 TK
+  // 3. B&W Both Side: 5 TK
+  // 4. Color Both Side: 8 TK
+  const selectedPriceItem = PRICING_LIST.find((p) => p.id === printType) || PRICING_LIST[0];
+  const unitRate = selectedPriceItem.rate;
+  const estimatedTotal = (Number(quantity) || 0) * (Number(pagesCount) || 1) * unitRate;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!clientName || !phone || !jobTitle) return;
 
-    const fullNotes = `Artwork: ${artworkLink || 'None provided'}. ${instructions || ''}`;
+    const fullTitle = `${jobTitle} [${selectedPriceItem.name}]`;
+    const fullNotes = `Print Type: ${selectedPriceItem.name}. Pages: ${pagesCount}. Artwork: ${artworkLink || 'None provided'}. ${instructions || ''}`;
 
     const res = await onSubmitClientOrder({
       clientName,
       phone,
       email,
-      title: jobTitle,
-      jobType: category,
+      title: fullTitle,
+      jobType: selectedPriceItem.name,
       quantity: Number(quantity),
       paper: paperStock,
       deliveryDate,
+      totalCost: estimatedTotal,
       notes: fullNotes,
     });
 
     if (res) {
-      setSubmittedTicket(res);
+      setSubmittedTicket({ ...res, calculatedPrice: estimatedTotal });
     }
+  };
+
+  const handleWhatsAppOrder = () => {
+    const textMessage = `Hello Press Ledger! I want to place a print order:
+- *Customer Name*: ${clientName || 'N/A'}
+- *Phone*: ${phone || 'N/A'}
+- *Job Description*: ${jobTitle || 'Print Order'}
+- *Print Type*: ${selectedPriceItem.name} (${selectedPriceItem.rate} TK)
+- *Pages*: ${pagesCount}
+- *Quantity*: ${quantity} pcs
+- *Estimated Total*: ৳${estimatedTotal.toLocaleString()}
+- *Artwork Link*: ${artworkLink || 'N/A'}
+- *Special Instructions*: ${instructions || 'N/A'}`;
+
+    const encoded = encodeURIComponent(textMessage);
+    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encoded}`, '_blank');
   };
 
   const handleTrackSearch = (e) => {
@@ -87,7 +120,7 @@ export default function PublicOrderPortal({ onSubmitClientOrder, jobs, currency 
 
           <h2 style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>Print Order Placed Successfully!</h2>
           <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
-            Thank you, <strong>{submittedTicket.clientName}</strong>! Your print order has been sent directly to our production queue.
+            Thank you, <strong>{submittedTicket.clientName}</strong>! Your print order has been received by our press team.
           </p>
 
           <div
@@ -97,7 +130,7 @@ export default function PublicOrderPortal({ onSubmitClientOrder, jobs, currency 
               borderRadius: 'var(--radius-sm)',
               padding: '1.25rem',
               textAlign: 'left',
-              marginBottom: '2rem'
+              marginBottom: '1.5rem'
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
@@ -116,8 +149,8 @@ export default function PublicOrderPortal({ onSubmitClientOrder, jobs, currency 
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-              <span style={{ color: 'var(--text-muted)' }}>Estimated Price:</span>
-              <strong style={{ color: 'var(--success)' }}>{currency}{submittedTicket.totalCost?.toLocaleString()}</strong>
+              <span style={{ color: 'var(--text-muted)' }}>Total Price:</span>
+              <strong style={{ color: 'var(--success)', fontSize: '1.1rem' }}>{currency}{(submittedTicket.calculatedPrice || submittedTicket.totalCost)?.toLocaleString()}</strong>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -126,24 +159,73 @@ export default function PublicOrderPortal({ onSubmitClientOrder, jobs, currency 
             </div>
           </div>
 
-          <button
-            className="btn btn-primary"
-            onClick={() => {
-              setSubmittedTicket(null);
-              setJobTitle('');
-              setInstructions('');
-              setArtworkLink('');
-            }}
-          >
-            Place Another Order
-          </button>
+          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+            <button className="btn btn-secondary" onClick={() => setSubmittedTicket(null)}>
+              Place Another Order
+            </button>
+            <button className="btn btn-success" onClick={handleWhatsAppOrder} style={{ background: '#25D366', color: '#fff', border: 'none' }}>
+              <MessageSquare size={16} /> Send via WhatsApp
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="public-portal-container" style={{ maxWidth: '780px', margin: '1rem auto' }}>
+    <div className="public-portal-container" style={{ maxWidth: '850px', margin: '1rem auto' }}>
+      {/* Official Printing Rate Price List Box */}
+      <div
+        className="glass-panel"
+        style={{
+          padding: '1.25rem',
+          marginBottom: '1.5rem',
+          background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.08), rgba(16, 185, 129, 0.08))',
+          border: '1px solid var(--accent-primary)'
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '0.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Tag size={20} style={{ color: 'var(--accent-primary)' }} />
+            <h3 style={{ fontSize: '1.05rem', margin: 0 }}>Official Printing Rates & Price List</h3>
+          </div>
+
+          <button
+            className="btn btn-success btn-sm"
+            style={{ background: '#25D366', color: '#fff', border: 'none' }}
+            onClick={handleWhatsAppOrder}
+          >
+            <MessageSquare size={16} /> Special Bulk Order? Chat on WhatsApp
+          </button>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '0.75rem' }}>
+          <div style={{ background: 'var(--bg-primary)', padding: '0.75rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', textAlign: 'center' }}>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Color (Single Side)</div>
+            <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--accent-primary)' }}>5 TK</div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>per page</div>
+          </div>
+
+          <div style={{ background: 'var(--bg-primary)', padding: '0.75rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', textAlign: 'center' }}>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>B&W (Single Side)</div>
+            <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--accent-primary)' }}>3 TK</div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>per page</div>
+          </div>
+
+          <div style={{ background: 'var(--bg-primary)', padding: '0.75rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', textAlign: 'center' }}>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>B&W (Both Side)</div>
+            <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--accent-primary)' }}>5 TK</div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>per sheet</div>
+          </div>
+
+          <div style={{ background: 'var(--bg-primary)', padding: '0.75rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', textAlign: 'center' }}>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Color (Both Side)</div>
+            <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--accent-primary)' }}>8 TK</div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>per sheet</div>
+          </div>
+        </div>
+      </div>
+
       {/* Sub Header Navigation: Place Order vs Track Order */}
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
         <button
@@ -179,7 +261,7 @@ export default function PublicOrderPortal({ onSubmitClientOrder, jobs, currency 
             <div>
               <h2 style={{ fontSize: '1.3rem', margin: 0 }}>Online Print Order Form</h2>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>
-                Fill in your print requirements below to submit your job directly to our press queue.
+                Select print rates and submit your job directly to our press queue or WhatsApp!
               </p>
             </div>
           </div>
@@ -240,7 +322,7 @@ export default function PublicOrderPortal({ onSubmitClientOrder, jobs, currency 
             {/* Order Specifications */}
             <div style={{ background: 'var(--bg-primary)', padding: '1rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', marginBottom: '1.25rem' }}>
               <h4 style={{ fontSize: '0.85rem', color: 'var(--accent-primary)', marginBottom: '0.75rem', textTransform: 'uppercase' }}>
-                2. Print Specifications
+                2. Print Specifications & Select Rate
               </h4>
 
               <div className="form-group">
@@ -248,33 +330,58 @@ export default function PublicOrderPortal({ onSubmitClientOrder, jobs, currency 
                 <input
                   type="text"
                   className="form-control"
-                  placeholder="e.g. 2,000 Pcs Brochure / Cash Memo / Packaging Box"
+                  placeholder="e.g. Brochure / Document Printing / Cash Memo"
                   value={jobTitle}
                   onChange={(e) => setJobTitle(e.target.value)}
                   required
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
                 <div className="form-group">
-                  <label>Category</label>
-                  <select className="form-select" value={category} onChange={(e) => setCategory(e.target.value)}>
-                    <option value="Flyer">Flyer / Leaflet</option>
-                    <option value="Booklet / Catalog">Booklet / Catalog</option>
-                    <option value="Packaging Box">Packaging Box</option>
-                    <option value="Business Cards">Business Cards</option>
-                    <option value="General Printing">General Printing</option>
+                  <label>Select Print Rate & Type *</label>
+                  <select className="form-select" value={printType} onChange={(e) => setPrintType(e.target.value)}>
+                    {PRICING_LIST.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.name} - {item.desc}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
                 <div className="form-group">
-                  <label>Quantity (Pcs) *</label>
+                  <label>Number of Pages per Copy</label>
                   <input
                     type="number"
                     className="form-control"
+                    min="1"
+                    value={pagesCount}
+                    onChange={(e) => setPagesCount(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+                <div className="form-group">
+                  <label>Total Copies / Quantity *</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    min="1"
                     value={quantity}
                     onChange={(e) => setQuantity(e.target.value)}
                     required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Paper Type</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={paperStock}
+                    onChange={(e) => setPaperStock(e.target.value)}
                   />
                 </div>
 
@@ -309,20 +416,20 @@ export default function PublicOrderPortal({ onSubmitClientOrder, jobs, currency 
                 <textarea
                   className="form-control"
                   rows="2"
-                  placeholder="Specify paper GSM, Gloss/Matte Lamination, Creasing, or Folding instructions..."
+                  placeholder="Specify Lamination, Binding, Stapling, or special requests..."
                   value={instructions}
                   onChange={(e) => setInstructions(e.target.value)}
                 ></textarea>
               </div>
             </div>
 
-            {/* Live Price Estimation Box */}
+            {/* Live Price Estimation Box based on rates */}
             <div
               style={{
                 display: 'flex',
                 justify: 'space-between',
                 alignItems: 'center',
-                padding: '1rem',
+                padding: '1.25rem',
                 borderRadius: 'var(--radius-sm)',
                 background: 'rgba(16, 185, 129, 0.1)',
                 border: '1px solid rgba(16, 185, 129, 0.3)',
@@ -331,23 +438,35 @@ export default function PublicOrderPortal({ onSubmitClientOrder, jobs, currency 
             >
               <div>
                 <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Estimated Order Total</div>
-                <div style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--success)' }}>
+                <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--success)' }}>
                   {currency}{estimatedTotal.toLocaleString()}
                 </div>
               </div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'right' }}>
-                Rate: ~{currency}{estimatedUnitPrice} / pcs
+              <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textAlign: 'right' }}>
+                Rate: <strong>{unitRate} TK</strong> ({selectedPriceItem.name})
               </div>
             </div>
 
-            <button
-              type="submit"
-              className="btn btn-primary btn-lg"
-              style={{ width: '100%', justifyContent: 'center' }}
-            >
-              <Send size={18} />
-              <span>Submit Print Order Request</span>
-            </button>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <button
+                type="submit"
+                className="btn btn-primary btn-lg"
+                style={{ justifyContent: 'center' }}
+              >
+                <Send size={18} />
+                <span>Submit Web Order</span>
+              </button>
+
+              <button
+                type="button"
+                className="btn btn-success btn-lg"
+                style={{ background: '#25D366', color: '#fff', border: 'none', justifyContent: 'center' }}
+                onClick={handleWhatsAppOrder}
+              >
+                <MessageSquare size={18} />
+                <span>Order via WhatsApp</span>
+              </button>
+            </div>
           </form>
         </div>
       ) : (
