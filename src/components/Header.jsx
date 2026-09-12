@@ -1,15 +1,17 @@
 import React from 'react';
-import { Sun, Moon, Plus, UserPlus, RotateCcw } from 'lucide-react';
+import { Sun, Moon, Plus, UserPlus, ShoppingBag, RotateCcw } from 'lucide-react';
 
 const TAB_TITLES = {
   dashboard: 'Press Executive Dashboard',
   jobs: 'Job Orders & Due Tracking',
   clients: 'Client Accounts & Pay Ledger',
   invoices: 'Invoices & Billing Receipts',
+  order_online: 'Client Online Order Request Portal',
 };
 
 export default function Header({
   activeTab,
+  setActiveTab,
   theme,
   setTheme,
   onOpenNewJob,
@@ -23,6 +25,16 @@ export default function Header({
       </div>
 
       <div className="header-right">
+        {activeTab !== 'order_online' && (
+          <button
+            className="btn btn-outline btn-sm"
+            onClick={() => setActiveTab && setActiveTab('order_online')}
+          >
+            <ShoppingBag size={16} />
+            <span>Order Online</span>
+          </button>
+        )}
+
         <button
           className="btn btn-danger btn-sm"
           onClick={() => {

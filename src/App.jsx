@@ -5,6 +5,7 @@ import Dashboard from './components/Dashboard';
 import JobOrders from './components/JobOrders';
 import ClientLedger from './components/ClientLedger';
 import Invoices from './components/Invoices';
+import PublicOrderPortal from './components/PublicOrderPortal';
 import PrintModal from './components/PrintModal';
 
 import { api } from './utils/api';
@@ -69,8 +70,9 @@ function App() {
   };
 
   const handleCreateJob = async (jobPayload) => {
-    await api.createJob(jobPayload);
+    const res = await api.createJob(jobPayload);
     await refreshData();
+    return res;
   };
 
   const handleCreateJobSubmit = async (e) => {
@@ -101,6 +103,40 @@ function App() {
     setJobTitle('');
     setJobCost(500);
     setJobAdvancePaid(0);
+  };
+
+  // Online Client Order Submission (Public Portal)
+  const handleSubmitOnlineClientOrder = async (orderData) => {
+    let client = appData.clients.find(
+      (c) => c.name.toLowerCase() === orderData.clientName.toLowerCase() || (c.phone && c.phone === orderData.phone)
+    );
+
+    if (!client) {
+      client = await api.createClient({
+        name: orderData.clientName,
+        phone: orderData.phone,
+        email: orderData.email || '',
+        contactPerson: orderData.clientName,
+      });
+    }
+
+    const estimatedCost = orderData.quantity ? orderData.quantity * 0.5 : 500;
+
+    const newJob = await handleCreateJob({
+      title: orderData.title,
+      clientId: client.id,
+      clientName: client.name,
+      jobType: orderData.jobType,
+      paper: orderData.paper,
+      finishedSize: 'Standard',
+      quantity: orderData.quantity,
+      totalCost: estimatedCost,
+      advancePaid: 0,
+      deliveryDate: orderData.deliveryDate,
+      notes: `Online Request. ${orderData.notes || ''}`,
+    });
+
+    return newJob;
   };
 
   const handleCreateClientSubmit = async (e) => {
@@ -138,7 +174,7 @@ function App() {
 
   return (
     <div className="app-container">
-      {/* Sidebar - Only 4 Core Modules */}
+      {/* Sidebar */}
       <Sidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -206,10 +242,18 @@ function App() {
               }}
             />
           )}
+
+          {/* Online Order Portal for Clients */}
+          {activeTab === 'order_online' && (
+            <PublicOrderPortal
+              onSubmitClientOrder={handleSubmitOnlineClientOrder}
+              currency={currencySymbol}
+            />
+          )}
         </main>
       </div>
 
-      {/* New Job Modal (Simple Order Record & Due System) */}
+      {/* New Job Modal */}
       {newJobModalOpen && (
         <div className="modal-overlay" onClick={() => setNewJobModalOpen(false)}>
           <div className="modal-content modal-lg" onClick={(e) => e.stopPropagation()}>

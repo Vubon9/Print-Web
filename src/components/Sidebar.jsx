@@ -4,6 +4,7 @@ import {
   Printer,
   Users,
   FileText,
+  ShoppingBag,
   Layers
 } from 'lucide-react';
 
@@ -12,6 +13,7 @@ const NAV_ITEMS = [
   { id: 'jobs', label: 'Job Orders', icon: Printer },
   { id: 'clients', label: 'Client Accounts', icon: Users },
   { id: 'invoices', label: 'Invoices & Billing', icon: FileText },
+  { id: 'order_online', label: 'Order Online', icon: ShoppingBag },
 ];
 
 export default function Sidebar({ activeTab, setActiveTab, companyName }) {
