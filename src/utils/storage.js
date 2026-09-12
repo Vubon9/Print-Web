@@ -1,5 +1,5 @@
 /**
- * Storage Utility for Press Ledger (Clean & Empty Data Store)
+ * Storage Utility for Press Ledger (No Tax - Clean Backend Ready Data Store)
  */
 
 const STORAGE_KEYS = {
@@ -16,11 +16,9 @@ const DEFAULT_SETTINGS = {
   address: '',
   phone: '',
   email: '',
-  taxId: '',
   currency: '৳',
   ctpPlateRate: 250,
   impressionRatePerThousand: 150,
-  defaultTaxPercent: 5,
 };
 
 const INITIAL_CLIENTS = [];

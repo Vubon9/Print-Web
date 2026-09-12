@@ -1,5 +1,5 @@
 /**
- * Printing Press Cost Estimator & Paper Math Utility
+ * Printing Press Cost Estimator & Paper Math Utility (No Tax - Clean & Simple)
  */
 
 export const STANDARD_PAPER_SIZES = [
@@ -64,7 +64,7 @@ export function calculateCutsPerSheet(sheetW, sheetH, jobW, jobH) {
 }
 
 /**
- * Comprehensive Print Estimate Calculation
+ * Print Estimate Calculation (Without Tax)
  */
 export function calculatePrintEstimate(params) {
   const {
@@ -79,22 +79,21 @@ export function calculatePrintEstimate(params) {
     wastagePercent = 5,
     colorFront = 4, // CMYK
     colorBack = 4,
-    ctpPlateCost = 15, // per plate
-    impressionRatePerThousand = 8, // per 1000 impressions
-    laminationType = 'none', // 'gloss', 'matte', 'none'
-    laminationRatePerSqFt = 0.05,
-    bindingType = 'none', // 'saddle', 'perfect', 'none'
-    bindingRatePerCopy = 0.25,
+    ctpPlateCost = 250, // per plate
+    impressionRatePerThousand = 150, // per 1000 impressions
+    laminationType = 'none',
+    laminationRatePerSqFt = 0.5,
+    bindingType = 'none',
+    bindingRatePerCopy = 2,
     dieCutCost = 0,
     embossCost = 0,
-    marginPercent = 25,
-    taxPercent = 5
+    marginPercent = 20,
   } = params;
 
   const cutLayout = calculateCutsPerSheet(sheetWidth, sheetHeight, jobWidth, jobHeight);
   const cutsPerSheet = cutLayout.cuts;
   
-  // Total copies / pages
+  // Total sheets needed
   const totalSheetsNeededNet = Math.ceil((quantity * pages) / cutsPerSheet);
   const wastageSheets = Math.ceil(totalSheetsNeededNet * (wastagePercent / 100));
   const totalFullSheets = totalSheetsNeededNet + wastageSheets;
@@ -103,12 +102,10 @@ export function calculatePrintEstimate(params) {
   const pricePerSheet = paperPricePerReam / 500;
   const paperCost = totalFullSheets * pricePerSheet;
 
-  // Weight estimation (approximate KG formula)
   const paperWeightKg = ((sheetWidth * sheetHeight * gsm * totalFullSheets) / 3100000).toFixed(2);
 
   // CTP Plates
   const totalColors = Number(colorFront) + Number(colorBack);
-  // Assume 1 form per 8 pages if multi-page book
   const formsCount = Math.max(1, Math.ceil(pages / (cutsPerSheet * 2)));
   const totalPlates = formsCount * Math.max(1, totalColors);
   const plateCost = totalPlates * ctpPlateCost;
@@ -131,16 +128,11 @@ export function calculatePrintEstimate(params) {
     bindingCost = quantity * bindingRatePerCopy;
   }
 
-  // Finishing Total
   const finishingCost = laminationCost + bindingCost + Number(dieCutCost) + Number(embossCost);
-
-  // Subtotal
   const productionSubtotal = paperCost + plateCost + impressionCost + finishingCost;
   const marginAmount = productionSubtotal * (marginPercent / 100);
-  const netTotal = productionSubtotal + marginAmount;
 
-  const taxAmount = netTotal * (taxPercent / 100);
-  const grandTotal = netTotal + taxAmount;
+  const grandTotal = Math.round(productionSubtotal + marginAmount);
   const unitCost = quantity > 0 ? grandTotal / quantity : 0;
 
   return {
@@ -159,8 +151,6 @@ export function calculatePrintEstimate(params) {
     finishingCost,
     productionSubtotal,
     marginAmount,
-    netTotal,
-    taxAmount,
     grandTotal,
     unitCost
   };

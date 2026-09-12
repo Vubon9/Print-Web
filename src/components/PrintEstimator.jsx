@@ -477,11 +477,6 @@ export default function PrintEstimator({
                   <span style={{ color: 'var(--success)' }}>+{currency}{estimate.marginAmount.toFixed(2)}</span>
                 </div>
 
-                <div className="cost-row">
-                  <span>Estimated Tax ({taxPercent}%):</span>
-                  <span>+{currency}{estimate.taxAmount.toFixed(2)}</span>
-                </div>
-
                 <div className="cost-row total">
                   <span>Grand Total Price:</span>
                   <span>{currency}{estimate.grandTotal.toFixed(2)}</span>

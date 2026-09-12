@@ -91,80 +91,58 @@ export default function Settings({ settings, onSaveSettings, onClearAllData }) {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            <div className="form-group">
-              <label>Tax Registration / VAT ID</label>
+          <div className="form-group">
+            <label>Currency Symbol</label>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <select
+                className="form-select"
+                style={{ width: '130px' }}
+                value={formState.currency || '৳'}
+                onChange={(e) => handleChange('currency', e.target.value)}
+              >
+                <option value="৳">৳ (BDT)</option>
+                <option value="BDT">BDT</option>
+                <option value="$">$ (USD)</option>
+                <option value="€">€ (EUR)</option>
+                <option value="£">£ (GBP)</option>
+                <option value="₹">₹ (INR)</option>
+                <option value="Custom">Custom</option>
+              </select>
               <input
                 type="text"
                 className="form-control"
-                value={formState.taxId || ''}
-                onChange={(e) => handleChange('taxId', e.target.value)}
+                placeholder="Symbol"
+                value={formState.currency || ''}
+                onChange={(e) => handleChange('currency', e.target.value)}
+                required
               />
-            </div>
-
-            <div className="form-group">
-              <label>Currency Symbol</label>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <select
-                  className="form-select"
-                  style={{ width: '130px' }}
-                  value={formState.currency || '৳'}
-                  onChange={(e) => handleChange('currency', e.target.value)}
-                >
-                  <option value="৳">৳ (BDT)</option>
-                  <option value="BDT">BDT</option>
-                  <option value="$">$ (USD)</option>
-                  <option value="€">€ (EUR)</option>
-                  <option value="£">£ (GBP)</option>
-                  <option value="₹">₹ (INR)</option>
-                  <option value="Custom">Custom</option>
-                </select>
-                <input
-                  type="text"
-                  className="form-control"
-                  placeholder="Symbol"
-                  value={formState.currency || ''}
-                  onChange={(e) => handleChange('currency', e.target.value)}
-                  required
-                />
-              </div>
             </div>
           </div>
 
           <hr style={{ border: 'none', borderTop: '1px solid var(--border-color)', margin: '1.5rem 0' }} />
 
           <h3 style={{ fontSize: '1rem', color: 'var(--accent-primary)', marginBottom: '1rem' }}>
-            Default Press Machine Rates & Taxes
+            Default Press Machine Rates
           </h3>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div className="form-group">
               <label>CTP Plate Rate ({formState.currency})</label>
               <input
                 type="number"
                 className="form-control"
-                value={formState.ctpPlateRate || 15}
+                value={formState.ctpPlateRate || 250}
                 onChange={(e) => handleChange('ctpPlateRate', Number(e.target.value))}
               />
             </div>
 
             <div className="form-group">
-              <label>Impression / 1,000 ({formState.currency})</label>
+              <label>Impression Rate / 1,000 ({formState.currency})</label>
               <input
                 type="number"
                 className="form-control"
-                value={formState.impressionRatePerThousand || 8}
+                value={formState.impressionRatePerThousand || 150}
                 onChange={(e) => handleChange('impressionRatePerThousand', Number(e.target.value))}
-              />
-            </div>
-
-            <div className="form-group">
-              <label>Default Tax / VAT %</label>
-              <input
-                type="number"
-                className="form-control"
-                value={formState.defaultTaxPercent || 5}
-                onChange={(e) => handleChange('defaultTaxPercent', Number(e.target.value))}
               />
             </div>
           </div>

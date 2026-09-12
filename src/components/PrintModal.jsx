@@ -149,14 +149,6 @@ export default function PrintModal({
               </table>
 
               <div className="doc-summary">
-                <div className="doc-summary-row">
-                  <span>Subtotal:</span>
-                  <span>{currency}{data.subtotal?.toLocaleString()}</span>
-                </div>
-                <div className="doc-summary-row">
-                  <span>Tax / VAT:</span>
-                  <span>{currency}{data.tax?.toLocaleString()}</span>
-                </div>
                 <div className="doc-summary-row grand-total">
                   <span>Grand Total:</span>
                   <span>{currency}{data.total?.toLocaleString()}</span>

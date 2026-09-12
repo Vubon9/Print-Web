@@ -11,19 +11,17 @@ import GeneralLedger from './components/GeneralLedger';
 import Settings from './components/Settings';
 import PrintModal from './components/PrintModal';
 
-import {
-  loadAllAppData,
-  saveStoredData,
-  clearAllAppData,
-  STORAGE_KEYS
-} from './utils/storage';
+import { api } from './utils/api';
 import './App.css';
 
 function App() {
-  const [appData, setAppData] = useState(() => {
-    // Force clear old mock data so user has clean slate
-    clearAllAppData();
-    return loadAllAppData();
+  const [appData, setAppData] = useState({
+    settings: {},
+    jobs: [],
+    clients: [],
+    invoices: [],
+    inventory: [],
+    ledger: [],
   });
   const [activeTab, setActiveTab] = useState('dashboard');
   const [theme, setTheme] = useState('dark');
@@ -39,11 +37,10 @@ function App() {
   const [jobType, setJobType] = useState('Flyer');
   const [jobPaper, setJobPaper] = useState('150gsm Art Paper (23" x 36")');
   const [jobFinishedSize, setJobFinishedSize] = useState('A4 (8.27" x 11.69")');
-  const [jobPages, setJobPages] = useState(2);
   const [jobQuantity, setJobQuantity] = useState(1000);
   const [jobCost, setJobCost] = useState(500);
-  const [jobOperator, setJobOperator] = useState('Standard Offset Machine Line');
-  const [jobDeliveryDate, setJobDeliveryDate] = useState('2026-08-25');
+  const [jobAdvancePaid, setJobAdvancePaid] = useState(0);
+  const [jobDeliveryDate, setJobDeliveryDate] = useState(new Date().toISOString().split('T')[0]);
   const [jobNotes, setJobNotes] = useState('');
 
   // New Client Form State
@@ -53,148 +50,81 @@ function App() {
   const [clientEmail, setClientEmail] = useState('');
   const [clientAddress, setClientAddress] = useState('');
 
+  // Initial Load from API
+  const refreshData = async () => {
+    const data = await api.loadAllData();
+    setAppData(data);
+  };
+
+  useEffect(() => {
+    refreshData();
+  }, []);
+
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
 
-  // Storage Sync Wrappers
-  const updateSettings = (newSettings) => {
-    const updated = { ...appData.settings, ...newSettings };
-    setAppData((prev) => ({ ...prev, settings: updated }));
-    saveStoredData(STORAGE_KEYS.SETTINGS, updated);
-  };
-
-  const updateJobs = (newJobs) => {
-    setAppData((prev) => ({ ...prev, jobs: newJobs }));
-    saveStoredData(STORAGE_KEYS.JOBS, newJobs);
-  };
-
-  const updateClients = (newClients) => {
-    setAppData((prev) => ({ ...prev, clients: newClients }));
-    saveStoredData(STORAGE_KEYS.CLIENTS, newClients);
-  };
-
-  const updateInvoices = (newInvoices) => {
-    setAppData((prev) => ({ ...prev, invoices: newInvoices }));
-    saveStoredData(STORAGE_KEYS.INVOICES, newInvoices);
-  };
-
-  const updateInventory = (newInv) => {
-    setAppData((prev) => ({ ...prev, inventory: newInv }));
-    saveStoredData(STORAGE_KEYS.INVENTORY, newInv);
-  };
-
-  const updateLedger = (newLedger) => {
-    setAppData((prev) => ({ ...prev, ledger: newLedger }));
-    saveStoredData(STORAGE_KEYS.LEDGER, newLedger);
-  };
-
   // Action Handlers
-  const handleUpdateJobStage = (jobId, newStage) => {
-    const updated = appData.jobs.map((j) => (j.id === jobId ? { ...j, stage: newStage } : j));
-    updateJobs(updated);
+  const handleUpdateJobStage = async (jobId, newStage) => {
+    await api.updateJobStage(jobId, newStage);
+    await refreshData();
   };
 
-  const handleDeleteJob = (jobId) => {
-    const updated = appData.jobs.filter((j) => j.id !== jobId);
-    updateJobs(updated);
+  const handleDeleteJob = async (jobId) => {
+    await api.deleteJob(jobId);
+    await refreshData();
   };
 
-  const handleCreateJob = (jobData) => {
-    const newJobObj = {
-      id: `PL-${Date.now().toString().slice(-3)}`,
-      jobNo: `JOB-2026-${Math.floor(100 + Math.random() * 900)}`,
-      createdDate: new Date().toISOString().split('T')[0],
-      stage: 'Pre-Press',
-      ...jobData,
-    };
-
-    const newJobs = [newJobObj, ...appData.jobs];
-    updateJobs(newJobs);
-
-    // Create corresponding Invoice
-    const selectedClient = appData.clients.find((c) => c.id === newJobObj.clientId);
-    const taxAmt = Math.round(newJobObj.totalCost * ((appData.settings.defaultTaxPercent || 5) / 100));
-    const totalAmt = newJobObj.totalCost + taxAmt;
-
-    const newInvoiceObj = {
-      id: `INV-2026-${Math.floor(100 + Math.random() * 900)}`,
-      jobId: newJobObj.id,
-      jobNo: newJobObj.jobNo,
-      clientId: newJobObj.clientId,
-      clientName: newJobObj.clientName,
-      invoiceDate: new Date().toISOString().split('T')[0],
-      dueDate: newJobObj.deliveryDate,
-      subtotal: newJobObj.totalCost,
-      tax: taxAmt,
-      total: totalAmt,
-      paidAmount: 0,
-      balance: totalAmt,
-      status: 'Unpaid',
-      items: [
-        {
-          description: `${newJobObj.title} (${newJobObj.quantity.toLocaleString()} pcs)`,
-          quantity: newJobObj.quantity,
-          unitPrice: Math.round((newJobObj.totalCost / newJobObj.quantity) * 1000) / 1000,
-          total: newJobObj.totalCost,
-        },
-      ],
-    };
-
-    updateInvoices([newInvoiceObj, ...appData.invoices]);
-
-    // Update Client Billed Balance
-    if (selectedClient) {
-      const updatedClients = appData.clients.map((c) =>
-        c.id === selectedClient.id
-          ? {
-              ...c,
-              totalBilled: c.totalBilled + totalAmt,
-              balance: c.balance + totalAmt,
-            }
-          : c
-      );
-      updateClients(updatedClients);
-    }
+  const handleCreateJob = async (jobPayload) => {
+    await api.createJob(jobPayload);
+    await refreshData();
   };
 
-  const handleCreateJobSubmit = (e) => {
+  const handleCreateJobSubmit = async (e) => {
     e.preventDefault();
-    const client = appData.clients.find((c) => c.id === jobClientId) || appData.clients[0];
-    handleCreateJob({
+    const selectedClient = appData.clients.find((c) => c.id === jobClientId) || appData.clients[0];
+    
+    // If no client exists, prompt to create client first
+    if (!selectedClient) {
+      alert('Please add a Client first before creating a Job Order!');
+      setNewClientModalOpen(true);
+      return;
+    }
+
+    await handleCreateJob({
       title: jobTitle || 'Custom Print Order',
-      clientId: client.id,
-      clientName: client.name,
+      clientId: selectedClient.id,
+      clientName: selectedClient.name,
       jobType,
       paper: jobPaper,
       finishedSize: jobFinishedSize,
-      pages: Number(jobPages),
+      pages: 1,
       quantity: Number(jobQuantity),
       totalCost: Number(jobCost),
-      operator: jobOperator,
+      advancePaid: Number(jobAdvancePaid) || 0,
       deliveryDate: jobDeliveryDate,
       notes: jobNotes,
     });
+
     setNewJobModalOpen(false);
+    setJobTitle('');
+    setJobCost(500);
+    setJobAdvancePaid(0);
   };
 
-  const handleCreateClientSubmit = (e) => {
+  const handleCreateClientSubmit = async (e) => {
     e.preventDefault();
     if (!clientName) return;
 
-    const newClientObj = {
-      id: `C-${Date.now().toString().slice(-3)}`,
+    await api.createClient({
       name: clientName,
       contactPerson: clientContact,
       phone: clientPhone,
       email: clientEmail,
       address: clientAddress,
-      totalBilled: 0,
-      totalPaid: 0,
-      balance: 0,
-    };
+    });
 
-    updateClients([...appData.clients, newClientObj]);
+    await refreshData();
     setNewClientModalOpen(false);
     setClientName('');
     setClientContact('');
@@ -203,75 +133,45 @@ function App() {
     setClientAddress('');
   };
 
-  const handleRecordPayment = ({ clientId, amount, method, reference, notes, date }) => {
-    // 1. Update Client Record
-    const updatedClients = appData.clients.map((c) =>
-      c.id === clientId
-        ? {
-            ...c,
-            totalPaid: c.totalPaid + amount,
-            balance: Math.max(0, c.balance - amount),
-          }
-        : c
-    );
-    updateClients(updatedClients);
-
-    // 2. Update Unpaid / Partial Invoices for this Client
-    let remainingPayment = amount;
-    const updatedInvoices = appData.invoices.map((inv) => {
-      if (inv.clientId === clientId && inv.balance > 0 && remainingPayment > 0) {
-        const payToInv = Math.min(inv.balance, remainingPayment);
-        remainingPayment -= payToInv;
-
-        const newPaid = inv.paidAmount + payToInv;
-        const newBal = inv.total - newPaid;
-        return {
-          ...inv,
-          paidAmount: newPaid,
-          balance: newBal,
-          status: newBal === 0 ? 'Paid' : 'Partial',
-        };
-      }
-      return inv;
-    });
-    updateInvoices(updatedInvoices);
-
-    // 3. Log Entry in General Ledger
-    const targetClient = appData.clients.find((c) => c.id === clientId);
-    const newLedgerEntry = {
-      id: `LED-${Date.now().toString().slice(-4)}`,
-      date: date || new Date().toISOString().split('T')[0],
-      type: 'Income',
-      category: 'Job Payment',
-      description: `Payment from ${targetClient?.name || 'Client'} (${method})`,
-      amount,
-      reference,
-    };
-    updateLedger([newLedgerEntry, ...appData.ledger]);
+  const handleRecordPayment = async (payData) => {
+    await api.recordPayment(payData);
+    await refreshData();
   };
 
-  const handleUpdateStock = (itemId, addQty) => {
-    const updated = appData.inventory.map((item) =>
-      item.id === itemId ? { ...item, stock: item.stock + addQty } : item
-    );
-    updateInventory(updated);
+  const handleUpdateStock = async (itemId, addQty) => {
+    await api.updateInventoryStock(itemId, addQty);
+    await refreshData();
   };
 
-  const handleAddInventoryItem = (newItem) => {
-    updateInventory([...appData.inventory, newItem]);
+  const handleAddInventoryItem = async (newItem) => {
+    await api.addInventoryItem(newItem);
+    await refreshData();
   };
 
-  const handleAddLedgerEntry = (newEntry) => {
-    updateLedger([newEntry, ...appData.ledger]);
+  const handleAddLedgerEntry = async (newEntry) => {
+    await api.addLedgerEntry(newEntry);
+    await refreshData();
   };
+
+  const handleSaveSettings = async (newSettings) => {
+    await api.saveSettings(newSettings);
+    await refreshData();
+  };
+
+  const handleResetData = async () => {
+    await api.resetData();
+    await refreshData();
+  };
+
+  const currencySymbol = appData.settings?.currency || '৳';
 
   return (
     <div className="app-container">
-      {/* Left Navigation Sidebar */}
+      {/* Sidebar */}
       <Sidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
-        companyName={appData.settings.companyName}
+        companyName={appData.settings?.companyName}
       />
 
       {/* Main Content Area */}
@@ -293,7 +193,7 @@ function App() {
               invoices={appData.invoices}
               inventory={appData.inventory}
               ledger={appData.ledger}
-              currency={appData.settings.currency}
+              currency={currencySymbol}
               setActiveTab={setActiveTab}
               onSelectJob={(job) => setPrintModalState({ open: true, type: 'ticket', data: job })}
             />
@@ -303,9 +203,9 @@ function App() {
             <PrintEstimator
               clients={appData.clients}
               settings={appData.settings}
-              currency={appData.settings.currency}
-              onCreateJobFromQuote={(jobObj) => {
-                handleCreateJob(jobObj);
+              currency={currencySymbol}
+              onCreateJobFromQuote={async (jobObj) => {
+                await handleCreateJob(jobObj);
                 setActiveTab('jobs');
               }}
             />
@@ -314,8 +214,7 @@ function App() {
           {activeTab === 'jobs' && (
             <JobOrders
               jobs={appData.jobs}
-              clients={appData.clients}
-              currency={appData.settings.currency}
+              currency={currencySymbol}
               onUpdateJobStage={handleUpdateJobStage}
               onDeleteJob={handleDeleteJob}
               onOpenPrintTicket={(job) => setPrintModalState({ open: true, type: 'ticket', data: job })}
@@ -329,7 +228,7 @@ function App() {
               clients={appData.clients}
               invoices={appData.invoices}
               ledger={appData.ledger}
-              currency={appData.settings.currency}
+              currency={currencySymbol}
               onOpenNewClient={() => setNewClientModalOpen(true)}
               onRecordPayment={handleRecordPayment}
               onOpenClientStatement={(client) => setPrintModalState({ open: true, type: 'statement', data: client })}
@@ -339,9 +238,9 @@ function App() {
           {activeTab === 'invoices' && (
             <Invoices
               invoices={appData.invoices}
-              currency={appData.settings.currency}
+              currency={currencySymbol}
               onOpenInvoiceModal={(inv) => setPrintModalState({ open: true, type: 'invoice', data: inv })}
-              onPayDue={(inv) => {
+              onPayDue={() => {
                 setActiveTab('clients');
               }}
             />
@@ -350,7 +249,7 @@ function App() {
           {activeTab === 'inventory' && (
             <Inventory
               inventory={appData.inventory}
-              currency={appData.settings.currency}
+              currency={currencySymbol}
               onUpdateStock={handleUpdateStock}
               onAddInventoryItem={handleAddInventoryItem}
             />
@@ -359,7 +258,7 @@ function App() {
           {activeTab === 'ledger' && (
             <GeneralLedger
               ledger={appData.ledger}
-              currency={appData.settings.currency}
+              currency={currencySymbol}
               onAddLedgerEntry={handleAddLedgerEntry}
             />
           )}
@@ -367,11 +266,8 @@ function App() {
           {activeTab === 'settings' && (
             <Settings
               settings={appData.settings}
-              onSaveSettings={updateSettings}
-              onClearAllData={() => {
-                clearAllAppData();
-                setAppData(loadAllAppData());
-              }}
+              onSaveSettings={handleSaveSettings}
+              onClearAllData={handleResetData}
             />
           )}
         </main>
@@ -382,18 +278,18 @@ function App() {
         <div className="modal-overlay" onClick={() => setNewJobModalOpen(false)}>
           <div className="modal-content modal-lg" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Create New Job Order</h3>
+              <h3>Create New Job Order (Taking Record & Due System)</h3>
               <button className="modal-close-btn" onClick={() => setNewJobModalOpen(false)}>×</button>
             </div>
 
             <form onSubmit={handleCreateJobSubmit}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div className="form-group">
-                  <label>Job Title / Description</label>
+                  <label>Job Title / Product Name</label>
                   <input
                     type="text"
                     className="form-control"
-                    placeholder="e.g. 5,000 Copies Brochure"
+                    placeholder="e.g. 5,000 Pcs Poster / Catalogue"
                     value={jobTitle}
                     onChange={(e) => setJobTitle(e.target.value)}
                     required
@@ -402,29 +298,42 @@ function App() {
 
                 <div className="form-group">
                   <label>Select Client</label>
-                  <select
-                    className="form-select"
-                    value={jobClientId}
-                    onChange={(e) => setJobClientId(e.target.value)}
-                  >
-                    {appData.clients.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
+                  {appData.clients.length === 0 ? (
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <input type="text" className="form-control" placeholder="No client found. Add new!" disabled />
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-sm"
+                        onClick={() => setNewClientModalOpen(true)}
+                      >
+                        + Add Client
+                      </button>
+                    </div>
+                  ) : (
+                    <select
+                      className="form-select"
+                      value={jobClientId}
+                      onChange={(e) => setJobClientId(e.target.value)}
+                    >
+                      {appData.clients.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name} (Phone: {c.phone || 'N/A'})
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
                 <div className="form-group">
-                  <label>Job Type</label>
+                  <label>Job Category</label>
                   <select className="form-select" value={jobType} onChange={(e) => setJobType(e.target.value)}>
-                    <option value="Flyer">Flyer / Leaflet</option>
+                    <option value="Flyer">Flyer / Banner</option>
                     <option value="Booklet / Catalog">Booklet / Catalog</option>
-                    <option value="Hardcover Book">Hardcover Book</option>
                     <option value="Packaging Box">Packaging Box</option>
                     <option value="Business Cards">Business Cards</option>
+                    <option value="General Printing">General Printing</option>
                   </select>
                 </div>
 
@@ -449,7 +358,48 @@ function App() {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+              {/* Cost, Advance Paid & Due Calculation Box */}
+              <div style={{ background: 'var(--bg-primary)', padding: '1rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', margin: '1rem 0' }}>
+                <h4 style={{ fontSize: '0.9rem', marginBottom: '0.75rem', color: 'var(--accent-primary)' }}>
+                  Financial Record (Pay & Due Calculation)
+                </h4>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+                  <div className="form-group">
+                    <label>Total Price ({currencySymbol})</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={jobCost}
+                      onChange={(e) => setJobCost(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Advance Paid ({currencySymbol})</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={jobAdvancePaid}
+                      onChange={(e) => setJobAdvancePaid(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Calculated Due ({currencySymbol})</label>
+                    <input
+                      type="text"
+                      className="form-control mono"
+                      style={{ fontWeight: 800, color: (Number(jobCost) - Number(jobAdvancePaid)) > 0 ? 'var(--danger)' : 'var(--success)' }}
+                      value={`${currencySymbol}${Math.max(0, Number(jobCost) - Number(jobAdvancePaid)).toLocaleString()}`}
+                      disabled
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div className="form-group">
                   <label>Quantity (pcs)</label>
                   <input
@@ -457,17 +407,6 @@ function App() {
                     className="form-control"
                     value={jobQuantity}
                     onChange={(e) => setJobQuantity(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Total Job Cost ({appData.settings.currency})</label>
-                  <input
-                    type="number"
-                    className="form-control"
-                    value={jobCost}
-                    onChange={(e) => setJobCost(e.target.value)}
                     required
                   />
                 </div>
@@ -485,13 +424,13 @@ function App() {
               </div>
 
               <div className="form-group">
-                <label>Press Operator Line & Special Instructions</label>
+                <label>Special Machine & Finishing Notes</label>
                 <textarea
                   className="form-control"
-                  rows="3"
+                  rows="2"
                   value={jobNotes}
                   onChange={(e) => setJobNotes(e.target.value)}
-                  placeholder="e.g. Gloss lamination on cover. 4/4 CMYK printing."
+                  placeholder="e.g. Gloss lamination on cover. 4/4 CMYK."
                 ></textarea>
               </div>
 
@@ -500,7 +439,7 @@ function App() {
                   Cancel
                 </button>
                 <button type="submit" className="btn btn-primary">
-                  Create Job Order
+                  Save Order Record & Update Ledger
                 </button>
               </div>
             </form>
@@ -513,7 +452,7 @@ function App() {
         <div className="modal-overlay" onClick={() => setNewClientModalOpen(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Create New Client Account</h3>
+              <h3>Add New Client Account</h3>
               <button className="modal-close-btn" onClick={() => setNewClientModalOpen(false)}>×</button>
             </div>
 
@@ -523,7 +462,7 @@ function App() {
                 <input
                   type="text"
                   className="form-control"
-                  placeholder="e.g. Acme Corporation"
+                  placeholder="e.g. Acme Printing Press Client"
                   value={clientName}
                   onChange={(e) => setClientName(e.target.value)}
                   required
@@ -577,7 +516,7 @@ function App() {
                   Cancel
                 </button>
                 <button type="submit" className="btn btn-primary">
-                  Save Client Account
+                  Save Client
                 </button>
               </div>
             </form>
@@ -585,7 +524,7 @@ function App() {
         </div>
       )}
 
-      {/* Print Document Modal (Ticket, Invoice, Statement) */}
+      {/* Print Document Modal */}
       {printModalState.open && (
         <PrintModal
           type={printModalState.type}
