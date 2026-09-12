@@ -247,6 +247,7 @@ function App() {
           {activeTab === 'order_online' && (
             <PublicOrderPortal
               onSubmitClientOrder={handleSubmitOnlineClientOrder}
+              jobs={appData.jobs || []}
               currency={currencySymbol}
             />
           )}
