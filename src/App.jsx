@@ -129,6 +129,11 @@ function App() {
     await refreshData();
   };
 
+  const handleResetData = async () => {
+    await api.resetData();
+    await refreshData();
+  };
+
   const currencySymbol = '৳';
 
   return (
@@ -149,6 +154,7 @@ function App() {
           setTheme={setTheme}
           onOpenNewJob={() => setNewJobModalOpen(true)}
           onOpenNewClient={() => setNewClientModalOpen(true)}
+          onResetData={handleResetData}
         />
 
         <main className="content-body">

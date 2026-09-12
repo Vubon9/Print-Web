@@ -6,6 +6,7 @@
 import {
   loadAllAppData,
   saveStoredData,
+  clearAllAppData,
   STORAGE_KEYS
 } from './storage';
 
@@ -239,5 +240,14 @@ export const api = {
     saveStoredData(STORAGE_KEYS.JOBS, updatedJobs);
 
     return loadAllAppData();
+  },
+
+  // ----------------------------------------------------
+  // RESET DATA API
+  // ----------------------------------------------------
+  async resetData() {
+    await fetchJSON('/reset', { method: 'POST' });
+    clearAllAppData();
+    return { jobs: [], clients: [], invoices: [] };
   }
 };

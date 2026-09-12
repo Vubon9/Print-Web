@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sun, Moon, Plus, UserPlus } from 'lucide-react';
+import { Sun, Moon, Plus, UserPlus, RotateCcw } from 'lucide-react';
 
 const TAB_TITLES = {
   dashboard: 'Press Executive Dashboard',
@@ -14,6 +14,7 @@ export default function Header({
   setTheme,
   onOpenNewJob,
   onOpenNewClient,
+  onResetData,
 }) {
   return (
     <header className="top-header no-print">
@@ -22,6 +23,19 @@ export default function Header({
       </div>
 
       <div className="header-right">
+        <button
+          className="btn btn-danger btn-sm"
+          onClick={() => {
+            if (window.confirm('Are you sure you want to reset all job orders, clients, and invoice data to empty?')) {
+              onResetData && onResetData();
+            }
+          }}
+          title="Reset All Data"
+        >
+          <RotateCcw size={15} />
+          <span>Reset Data</span>
+        </button>
+
         <button className="btn btn-secondary btn-sm" onClick={onOpenNewClient}>
           <UserPlus size={16} />
           <span>New Client</span>
