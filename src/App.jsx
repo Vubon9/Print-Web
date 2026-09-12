@@ -28,7 +28,7 @@ function App() {
   // New Job Form State
   const [jobTitle, setJobTitle] = useState('');
   const [jobClientId, setJobClientId] = useState('');
-  const [jobType, setJobType] = useState('General Printing');
+  const [jobType, setJobType] = useState('1. Color (Single Side)');
   const [jobPaper, setJobPaper] = useState('150gsm Art Paper');
   const [jobFinishedSize, setJobFinishedSize] = useState('A4');
   const [jobQuantity, setJobQuantity] = useState(1000);
@@ -308,13 +308,12 @@ function App() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
                 <div className="form-group">
-                  <label>Category</label>
+                  <label>Category / Print Rate</label>
                   <select className="form-select" value={jobType} onChange={(e) => setJobType(e.target.value)}>
-                    <option value="Flyer">Flyer / Banner</option>
-                    <option value="Booklet / Catalog">Booklet / Catalog</option>
-                    <option value="Packaging Box">Packaging Box</option>
-                    <option value="Business Cards">Business Cards</option>
-                    <option value="General Printing">General Printing</option>
+                    <option value="1. Color (Single Side)">1. Color (Single Side) - 5 TK</option>
+                    <option value="2. B&W (Single Side)">2. B&W (Single Side) - 3 TK</option>
+                    <option value="3. B&W (Both Side)">3. B&W (Both Side) - 5 TK</option>
+                    <option value="4. Color (Both Side)">4. Color (Both Side) - 8 TK</option>
                   </select>
                 </div>
 
