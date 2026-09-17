@@ -41,6 +41,17 @@ export const api = {
     return loadAllAppData();
   },
 
+  // Admin Login
+  async adminLogin(pin) {
+    const res = await fetchJSON('/admin/login', {
+      method: 'POST',
+      body: JSON.stringify({ pin }),
+    });
+    if (res && res.success) return true;
+    // Local fallback PIN check
+    return pin === '1234';
+  },
+
   // ----------------------------------------------------
   // JOB ORDERS API
   // ----------------------------------------------------

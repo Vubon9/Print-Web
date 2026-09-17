@@ -5,18 +5,26 @@ import {
   Users,
   FileText,
   ShoppingBag,
-  Layers
+  Layers,
+  Lock,
+  Unlock
 } from 'lucide-react';
 
-const NAV_ITEMS = [
+const ADMIN_NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'jobs', label: 'Job Orders', icon: Printer },
   { id: 'clients', label: 'Client Accounts', icon: Users },
   { id: 'invoices', label: 'Invoices & Billing', icon: FileText },
-  { id: 'order_online', label: 'Order Online', icon: ShoppingBag },
+  { id: 'order_online', label: 'Online Order Portal', icon: ShoppingBag },
 ];
 
-export default function Sidebar({ activeTab, setActiveTab, companyName }) {
+const PUBLIC_NAV_ITEMS = [
+  { id: 'order_online', label: 'Order Online (Public)', icon: ShoppingBag },
+];
+
+export default function Sidebar({ activeTab, setActiveTab, companyName, isAdmin, onOpenAdminLogin }) {
+  const navItems = isAdmin ? ADMIN_NAV_ITEMS : PUBLIC_NAV_ITEMS;
+
   return (
     <aside className="sidebar no-print">
       <div className="sidebar-header">
@@ -30,7 +38,7 @@ export default function Sidebar({ activeTab, setActiveTab, companyName }) {
       </div>
 
       <nav className="sidebar-nav">
-        {NAV_ITEMS.map((item) => {
+        {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
           return (
@@ -44,10 +52,23 @@ export default function Sidebar({ activeTab, setActiveTab, companyName }) {
             </button>
           );
         })}
+
+        {!isAdmin && (
+          <button
+            className="nav-item"
+            style={{ marginTop: '1rem', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)', border: '1px solid rgba(239, 68, 68, 0.2)' }}
+            onClick={onOpenAdminLogin}
+          >
+            <Lock size={18} />
+            <span>Admin Login (PIN)</span>
+          </button>
+        )}
       </nav>
 
       <div className="sidebar-footer">
-        <span>Fullstack API</span>
+        <span style={{ color: isAdmin ? 'var(--success)' : 'var(--text-muted)' }}>
+          {isAdmin ? '🔓 Admin Mode' : '🔒 Public Order Mode'}
+        </span>
         <span className="badge badge-success">Online</span>
       </div>
     </aside>

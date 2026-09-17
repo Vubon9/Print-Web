@@ -23,6 +23,7 @@ export default function PublicOrderPortal({ onSubmitClientOrder, jobs, currency 
   const [quantity, setQuantity] = useState(100);
   const [paperStock, setPaperStock] = useState('80gsm Offset Paper');
   const [artworkLink, setArtworkLink] = useState('');
+  const [attachedFile, setAttachedFile] = useState(null);
   const [deliveryDate, setDeliveryDate] = useState(new Date().toISOString().split('T')[0]);
   const [instructions, setInstructions] = useState('');
 
@@ -43,7 +44,7 @@ export default function PublicOrderPortal({ onSubmitClientOrder, jobs, currency 
     if (!clientName || !phone || !jobTitle) return;
 
     const fullTitle = `${jobTitle} (${selectedPriceItem.name})`;
-    const fullNotes = `Rate: ${selectedPriceItem.name} @ ${unitRate} TK. Pages: ${pagesCount}. Artwork: ${artworkLink || 'None provided'}. ${instructions || ''}`;
+    const fullNotes = `Rate: ${selectedPriceItem.name} @ ${unitRate} TK. Pages: ${pagesCount}. Artwork: ${attachedFile ? attachedFile.name : artworkLink || 'None provided'}. ${instructions || ''}`;
 
     const res = await onSubmitClientOrder({
       clientName,
@@ -56,6 +57,9 @@ export default function PublicOrderPortal({ onSubmitClientOrder, jobs, currency 
       deliveryDate,
       totalCost: estimatedTotal,
       notes: fullNotes,
+      attachmentName: attachedFile ? attachedFile.name : '',
+      attachmentSize: attachedFile ? attachedFile.size : '',
+      attachmentData: attachedFile ? attachedFile.data : '',
     });
 
     if (res) {
@@ -417,18 +421,49 @@ export default function PublicOrderPortal({ onSubmitClientOrder, jobs, currency 
                 </div>
               </div>
 
-              <div className="form-group">
-                <label>Artwork File Drive / Cloud Link (Google Drive, Dropbox, wetransfer)</label>
-                <div style={{ position: 'relative' }}>
-                  <Link size={16} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+              {/* Artwork File Attachment & Drive Link */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                <div className="form-group">
+                  <label>Attach Artwork / Document File (PDF, PNG, JPG, ZIP)</label>
                   <input
-                    type="url"
+                    type="file"
                     className="form-control"
-                    style={{ paddingLeft: '2.2rem' }}
-                    placeholder="https://drive.google.com/file/d/..."
-                    value={artworkLink}
-                    onChange={(e) => setArtworkLink(e.target.value)}
+                    accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.psd,.ai,.zip"
+                    onChange={(e) => {
+                      const file = e.target.files[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          setAttachedFile({
+                            name: file.name,
+                            size: (file.size / 1024).toFixed(1) + ' KB',
+                            data: reader.result
+                          });
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
                   />
+                  {attachedFile && (
+                    <div style={{ fontSize: '0.8rem', color: 'var(--success)', marginTop: '0.4rem', fontWeight: 600 }}>
+                      📎 Attached: {attachedFile.name} ({attachedFile.size})
+                    </div>
+                  )}
+                </div>
+
+                <div className="form-group">
+                  <label>Or Cloud Drive Link (Google Drive, Dropbox, WeTransfer)</label>
+                  <div style={{ position: 'relative' }}>
+                    <Link size={16} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                    <input
+                      type="url"
+                      className="form-control"
+                      style={{ paddingLeft: '2.2rem' }}
+                      placeholder="https://drive.google.com/file/d/..."
+                      value={artworkLink}
+                      onChange={(e) => setArtworkLink(e.target.value)}
+                    />
+                  </div>
                 </div>
               </div>
 

@@ -17,8 +17,16 @@ function App() {
     clients: [],
     invoices: [],
   });
-  const [activeTab, setActiveTab] = useState('dashboard');
+
+  // Default Landing Page: Online Order Portal (Open for Everyone)
+  const [activeTab, setActiveTab] = useState('order_online');
   const [theme, setTheme] = useState('dark');
+
+  // Admin Mode & PIN Authentication
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [adminLoginModalOpen, setAdminLoginModalOpen] = useState(false);
+  const [adminPinInput, setAdminPinInput] = useState('');
+  const [adminError, setAdminError] = useState('');
 
   // Modals
   const [newJobModalOpen, setNewJobModalOpen] = useState(false);
@@ -57,6 +65,37 @@ function App() {
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
+
+  // Tab Switch with Admin Authentication Safeguard
+  const handleTabChange = (tabId) => {
+    const adminOnlyTabs = ['dashboard', 'jobs', 'clients', 'invoices'];
+    if (adminOnlyTabs.includes(tabId) && !isAdmin) {
+      setAdminError('');
+      setAdminLoginModalOpen(true);
+      return;
+    }
+    setActiveTab(tabId);
+  };
+
+  // Admin PIN Login Handler
+  const handleAdminLoginSubmit = async (e) => {
+    e.preventDefault();
+    const success = await api.adminLogin(adminPinInput);
+    if (success) {
+      setIsAdmin(true);
+      setAdminLoginModalOpen(false);
+      setAdminPinInput('');
+      setAdminError('');
+      setActiveTab('dashboard'); // Switch to Dashboard after successful Admin login
+    } else {
+      setAdminError('Invalid Admin PIN! Default PIN is 1234');
+    }
+  };
+
+  const handleAdminLogout = () => {
+    setIsAdmin(false);
+    setActiveTab('order_online'); // Return to Public Online Order Portal
+  };
 
   // Action Handlers
   const handleUpdateJobStage = async (jobId, newStage) => {
@@ -120,20 +159,22 @@ function App() {
       });
     }
 
-    const estimatedCost = orderData.quantity ? orderData.quantity * 0.5 : 500;
-
     const newJob = await handleCreateJob({
       title: orderData.title,
       clientId: client.id,
       clientName: client.name,
+      phone: orderData.phone,
       jobType: orderData.jobType,
       paper: orderData.paper,
       finishedSize: 'Standard',
       quantity: orderData.quantity,
-      totalCost: estimatedCost,
+      totalCost: orderData.totalCost || (orderData.quantity * 5),
       advancePaid: 0,
       deliveryDate: orderData.deliveryDate,
       notes: `Online Request. ${orderData.notes || ''}`,
+      attachmentName: orderData.attachmentName || '',
+      attachmentSize: orderData.attachmentSize || '',
+      attachmentData: orderData.attachmentData || '',
     });
 
     return newJob;
@@ -177,73 +218,35 @@ function App() {
       {/* Sidebar */}
       <Sidebar
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={handleTabChange}
         companyName="Press Ledger"
+        isAdmin={isAdmin}
+        onOpenAdminLogin={() => {
+          setAdminError('');
+          setAdminLoginModalOpen(true);
+        }}
       />
 
       {/* Main Content Area */}
       <div className="main-wrapper">
         <Header
           activeTab={activeTab}
-          setActiveTab={setActiveTab}
+          setActiveTab={handleTabChange}
           theme={theme}
           setTheme={setTheme}
+          isAdmin={isAdmin}
+          onOpenAdminLogin={() => {
+            setAdminError('');
+            setAdminLoginModalOpen(true);
+          }}
+          onAdminLogout={handleAdminLogout}
           onOpenNewJob={() => setNewJobModalOpen(true)}
           onOpenNewClient={() => setNewClientModalOpen(true)}
           onResetData={handleResetData}
         />
 
         <main className="content-body">
-          {/* Module 1: Dashboard */}
-          {activeTab === 'dashboard' && (
-            <Dashboard
-              jobs={appData.jobs || []}
-              clients={appData.clients || []}
-              invoices={appData.invoices || []}
-              currency={currencySymbol}
-              setActiveTab={setActiveTab}
-              onSelectJob={(job) => setPrintModalState({ open: true, type: 'ticket', data: job })}
-            />
-          )}
-
-          {/* Module 2: Job Orders */}
-          {activeTab === 'jobs' && (
-            <JobOrders
-              jobs={appData.jobs || []}
-              currency={currencySymbol}
-              onUpdateJobStage={handleUpdateJobStage}
-              onDeleteJob={handleDeleteJob}
-              onOpenPrintTicket={(job) => setPrintModalState({ open: true, type: 'ticket', data: job })}
-              onOpenChallanTicket={(job) => setPrintModalState({ open: true, type: 'challan', data: job })}
-              onOpenNewJob={() => setNewJobModalOpen(true)}
-            />
-          )}
-
-          {/* Module 3: Client Accounts */}
-          {activeTab === 'clients' && (
-            <ClientLedger
-              clients={appData.clients || []}
-              invoices={appData.invoices || []}
-              currency={currencySymbol}
-              onOpenNewClient={() => setNewClientModalOpen(true)}
-              onRecordPayment={handleRecordPayment}
-              onOpenClientStatement={(client) => setPrintModalState({ open: true, type: 'statement', data: client })}
-            />
-          )}
-
-          {/* Module 4: Invoices & Billing */}
-          {activeTab === 'invoices' && (
-            <Invoices
-              invoices={appData.invoices || []}
-              currency={currencySymbol}
-              onOpenInvoiceModal={(inv) => setPrintModalState({ open: true, type: 'invoice', data: inv })}
-              onPayDue={() => {
-                setActiveTab('clients');
-              }}
-            />
-          )}
-
-          {/* Online Order Portal for Clients */}
+          {/* Public Order Portal (Open for Everyone) */}
           {activeTab === 'order_online' && (
             <PublicOrderPortal
               onSubmitClientOrder={handleSubmitOnlineClientOrder}
@@ -251,10 +254,112 @@ function App() {
               currency={currencySymbol}
             />
           )}
+
+          {/* Admin Protected Views */}
+          {isAdmin && (
+            <>
+              {activeTab === 'dashboard' && (
+                <Dashboard
+                  jobs={appData.jobs || []}
+                  clients={appData.clients || []}
+                  invoices={appData.invoices || []}
+                  currency={currencySymbol}
+                  setActiveTab={handleTabChange}
+                  onSelectJob={(job) => setPrintModalState({ open: true, type: 'ticket', data: job })}
+                />
+              )}
+
+              {activeTab === 'jobs' && (
+                <JobOrders
+                  jobs={appData.jobs || []}
+                  currency={currencySymbol}
+                  onUpdateJobStage={handleUpdateJobStage}
+                  onDeleteJob={handleDeleteJob}
+                  onOpenPrintTicket={(job) => setPrintModalState({ open: true, type: 'ticket', data: job })}
+                  onOpenChallanTicket={(job) => setPrintModalState({ open: true, type: 'challan', data: job })}
+                  onOpenNewJob={() => setNewJobModalOpen(true)}
+                />
+              )}
+
+              {activeTab === 'clients' && (
+                <ClientLedger
+                  clients={appData.clients || []}
+                  invoices={appData.invoices || []}
+                  currency={currencySymbol}
+                  onOpenNewClient={() => setNewClientModalOpen(true)}
+                  onRecordPayment={handleRecordPayment}
+                  onOpenClientStatement={(client) => setPrintModalState({ open: true, type: 'statement', data: client })}
+                />
+              )}
+
+              {activeTab === 'invoices' && (
+                <Invoices
+                  invoices={appData.invoices || []}
+                  currency={currencySymbol}
+                  onOpenInvoiceModal={(inv) => setPrintModalState({ open: true, type: 'invoice', data: inv })}
+                  onPayDue={() => {
+                    setActiveTab('clients');
+                  }}
+                />
+              )}
+            </>
+          )}
         </main>
       </div>
 
-      {/* New Job Modal */}
+      {/* Admin PIN Login Modal */}
+      {adminLoginModalOpen && (
+        <div className="modal-overlay" onClick={() => setAdminLoginModalOpen(false)}>
+          <div className="modal-content" style={{ maxWidth: '420px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Press Manager PIN Login</h3>
+              <button className="modal-close-btn" onClick={() => setAdminLoginModalOpen(false)}>×</button>
+            </div>
+
+            <form onSubmit={handleAdminLoginSubmit}>
+              <div style={{ textAlign: 'center', margin: '1rem 0' }}>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+                  Enter your 4-digit Admin PIN to access Dashboard, Job Orders, Client Accounts, and Billing.
+                </div>
+
+                <div className="form-group">
+                  <input
+                    type="password"
+                    className="form-control mono"
+                    style={{ fontSize: '1.5rem', letterSpacing: '0.5rem', textAlign: 'center' }}
+                    placeholder="****"
+                    maxLength="6"
+                    value={adminPinInput}
+                    onChange={(e) => setAdminPinInput(e.target.value)}
+                    autoFocus
+                    required
+                  />
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.4rem' }}>
+                    Default PIN: <strong>1234</strong>
+                  </div>
+                </div>
+
+                {adminError && (
+                  <div style={{ color: 'var(--danger)', fontSize: '0.85rem', fontWeight: 600, marginTop: '0.5rem' }}>
+                    {adminError}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem' }}>
+                <button type="button" className="btn btn-secondary" style={{ flexGrow: 1 }} onClick={() => setAdminLoginModalOpen(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary" style={{ flexGrow: 1 }}>
+                  Unlock Admin Panel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* New Job Modal (Admin Only) */}
       {newJobModalOpen && (
         <div className="modal-overlay" onClick={() => setNewJobModalOpen(false)}>
           <div className="modal-content modal-lg" onClick={(e) => e.stopPropagation()}>
