@@ -126,8 +126,10 @@ export const api = {
     };
     saveStoredData(STORAGE_KEYS.INVOICES, [newInvoice, ...(data.invoices || [])]);
 
+    let clientFound = false;
     const updatedClients = (data.clients || []).map((c) => {
-      if (c.id === newJob.clientId) {
+      if (c.id === newJob.clientId || (c.name && c.name.toLowerCase() === (newJob.clientName || '').toLowerCase())) {
+        clientFound = true;
         const newBilled = (c.totalBilled || 0) + totalCost;
         const newPaid = (c.totalPaid || 0) + advancePaid;
         const newBal = Math.max(0, newBilled - newPaid);
@@ -135,6 +137,22 @@ export const api = {
       }
       return c;
     });
+
+    if (!clientFound && newJob.clientName) {
+      const autoClient = {
+        id: newJob.clientId || `C-${Date.now().toString().slice(-4)}`,
+        name: newJob.clientName,
+        contactPerson: newJob.clientName,
+        phone: newJob.phone || '',
+        email: '',
+        address: '',
+        totalBilled: totalCost,
+        totalPaid: advancePaid,
+        balance: dueAmount,
+      };
+      updatedClients.unshift(autoClient);
+    }
+
     saveStoredData(STORAGE_KEYS.CLIENTS, updatedClients);
 
     return newJob;

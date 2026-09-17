@@ -108,6 +108,8 @@ function App() {
     await refreshData();
   };
 
+  const [jobCustomClientName, setJobCustomClientName] = useState('');
+
   const handleCreateJob = async (jobPayload) => {
     const res = await api.createJob(jobPayload);
     await refreshData();
@@ -116,18 +118,27 @@ function App() {
 
   const handleCreateJobSubmit = async (e) => {
     e.preventDefault();
-    const selectedClient = appData.clients.find((c) => c.id === jobClientId) || appData.clients[0];
-    
-    if (!selectedClient) {
-      alert('Please add a Client first before creating a Job Order!');
-      setNewClientModalOpen(true);
-      return;
+    let targetClientName = '';
+    let targetClientId = '';
+
+    if (jobCustomClientName.trim()) {
+      targetClientName = jobCustomClientName.trim();
+      targetClientId = `C-${Date.now().toString().slice(-4)}`;
+    } else {
+      const selectedClient = appData.clients.find((c) => c.id === jobClientId) || appData.clients[0];
+      if (selectedClient) {
+        targetClientName = selectedClient.name;
+        targetClientId = selectedClient.id;
+      } else {
+        targetClientName = 'General Customer';
+        targetClientId = `C-${Date.now().toString().slice(-4)}`;
+      }
     }
 
     await handleCreateJob({
       title: jobTitle || 'Custom Print Order',
-      clientId: selectedClient.id,
-      clientName: selectedClient.name,
+      clientId: targetClientId,
+      clientName: targetClientName,
       jobType,
       paper: jobPaper,
       finishedSize: jobFinishedSize,
@@ -140,6 +151,7 @@ function App() {
 
     setNewJobModalOpen(false);
     setJobTitle('');
+    setJobCustomClientName('');
     setJobCost(500);
     setJobAdvancePaid(0);
   };
@@ -406,30 +418,40 @@ function App() {
                 </div>
 
                 <div className="form-group">
-                  <label>Select Client</label>
-                  {(appData.clients || []).length === 0 ? (
+                  <label>Select Existing Client or Type New Name *</label>
+                  {(appData.clients || []).length > 0 ? (
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <input type="text" className="form-control" placeholder="No client found. Add new!" disabled />
-                      <button
-                        type="button"
-                        className="btn btn-primary btn-sm"
-                        onClick={() => setNewClientModalOpen(true)}
+                      <select
+                        className="form-select"
+                        value={jobClientId}
+                        onChange={(e) => {
+                          setJobClientId(e.target.value);
+                          setJobCustomClientName('');
+                        }}
                       >
-                        + Add Client
-                      </button>
+                        {(appData.clients || []).map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name} (Phone: {c.phone || 'N/A'})
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        type="text"
+                        className="form-control"
+                        placeholder="Or Type New Name"
+                        value={jobCustomClientName}
+                        onChange={(e) => setJobCustomClientName(e.target.value)}
+                      />
                     </div>
                   ) : (
-                    <select
-                      className="form-select"
-                      value={jobClientId}
-                      onChange={(e) => setJobClientId(e.target.value)}
-                    >
-                      {(appData.clients || []).map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name} (Phone: {c.phone || 'N/A'})
-                        </option>
-                      ))}
-                    </select>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="Type Client / Company Name *"
+                      value={jobCustomClientName}
+                      onChange={(e) => setJobCustomClientName(e.target.value)}
+                      required
+                    />
                   )}
                 </div>
               </div>

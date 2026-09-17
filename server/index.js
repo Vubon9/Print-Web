@@ -229,13 +229,27 @@ app.post('/api/jobs', async (req, res) => {
       const createdJob = await JobModel.create(newJob);
       await InvoiceModel.create(newInvoice);
 
-      // Update Client Billed & Balance in MongoDB
-      const clientObj = await ClientModel.findOne({ id: newJob.clientId });
+      // Update Client Billed & Balance in MongoDB (or create if missing)
+      let clientObj = await ClientModel.findOne({
+        $or: [{ id: newJob.clientId }, { name: new RegExp(`^${newJob.clientName}$`, 'i') }]
+      });
       if (clientObj) {
         const newBilled = (clientObj.totalBilled || 0) + totalCost;
         const newPaid = (clientObj.totalPaid || 0) + advancePaid;
         const newBal = Math.max(0, newBilled - newPaid);
-        await ClientModel.updateOne({ id: newJob.clientId }, { totalBilled: newBilled, totalPaid: newPaid, balance: newBal });
+        await ClientModel.updateOne({ id: clientObj.id }, { totalBilled: newBilled, totalPaid: newPaid, balance: newBal });
+      } else if (newJob.clientName) {
+        await ClientModel.create({
+          id: newJob.clientId || `C-${Date.now().toString().slice(-4)}`,
+          name: newJob.clientName,
+          contactPerson: newJob.clientName,
+          phone: newJob.phone || '',
+          email: '',
+          address: '',
+          totalBilled: totalCost,
+          totalPaid: advancePaid,
+          balance: dueAmount,
+        });
       }
 
       return res.status(201).json(createdJob);
@@ -249,8 +263,10 @@ app.post('/api/jobs', async (req, res) => {
   db.jobs.unshift(newJob);
   db.invoices.unshift(newInvoice);
 
+  let clientFound = false;
   db.clients = db.clients.map((c) => {
-    if (c.id === newJob.clientId) {
+    if (c.id === newJob.clientId || (c.name && c.name.toLowerCase() === (newJob.clientName || '').toLowerCase())) {
+      clientFound = true;
       const newBilled = (c.totalBilled || 0) + totalCost;
       const newPaid = (c.totalPaid || 0) + advancePaid;
       const newBal = Math.max(0, newBilled - newPaid);
@@ -258,6 +274,20 @@ app.post('/api/jobs', async (req, res) => {
     }
     return c;
   });
+
+  if (!clientFound && newJob.clientName) {
+    db.clients.unshift({
+      id: newJob.clientId || `C-${Date.now().toString().slice(-4)}`,
+      name: newJob.clientName,
+      contactPerson: newJob.clientName,
+      phone: newJob.phone || '',
+      email: '',
+      address: '',
+      totalBilled: totalCost,
+      totalPaid: advancePaid,
+      balance: dueAmount,
+    });
+  }
 
   writeDB(db);
   res.status(201).json(newJob);
