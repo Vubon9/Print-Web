@@ -84,6 +84,7 @@ export const api = {
       title: jobPayload.title || 'Untitled Order',
       clientId: jobPayload.clientId,
       clientName: jobPayload.clientName,
+      phone: jobPayload.phone || '',
       jobType: jobPayload.jobType || 'General Printing',
       paper: jobPayload.paper || 'Standard Paper',
       finishedSize: jobPayload.finishedSize || 'A4',
@@ -95,9 +96,12 @@ export const api = {
       deliveryDate: jobPayload.deliveryDate || createdDate,
       createdDate: createdDate,
       notes: jobPayload.notes || '',
+      attachmentName: jobPayload.attachmentName || '',
+      attachmentSize: jobPayload.attachmentSize || '',
+      attachmentData: jobPayload.attachmentData || '',
     };
 
-    saveStoredData(STORAGE_KEYS.JOBS, [newJob, ...data.jobs]);
+    saveStoredData(STORAGE_KEYS.JOBS, [newJob, ...(data.jobs || [])]);
 
     const newInvoice = {
       id: `INV-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`,
@@ -120,9 +124,9 @@ export const api = {
         },
       ],
     };
-    saveStoredData(STORAGE_KEYS.INVOICES, [newInvoice, ...data.invoices]);
+    saveStoredData(STORAGE_KEYS.INVOICES, [newInvoice, ...(data.invoices || [])]);
 
-    const updatedClients = data.clients.map((c) => {
+    const updatedClients = (data.clients || []).map((c) => {
       if (c.id === newJob.clientId) {
         const newBilled = (c.totalBilled || 0) + totalCost;
         const newPaid = (c.totalPaid || 0) + advancePaid;
@@ -182,7 +186,7 @@ export const api = {
       id: `C-${Date.now().toString().slice(-4)}`,
       name: clientPayload.name,
       contactPerson: clientPayload.contactPerson || '',
-      phone: clientPhone || clientPayload.phone || '',
+      phone: clientPayload.phone || '',
       email: clientPayload.email || '',
       address: clientPayload.address || '',
       totalBilled: 0,
@@ -190,7 +194,7 @@ export const api = {
       balance: 0,
     };
 
-    saveStoredData(STORAGE_KEYS.CLIENTS, [newClient, ...data.clients]);
+    saveStoredData(STORAGE_KEYS.CLIENTS, [newClient, ...(data.clients || [])]);
     return newClient;
   },
 

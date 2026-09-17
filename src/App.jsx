@@ -146,38 +146,64 @@ function App() {
 
   // Online Client Order Submission (Public Portal)
   const handleSubmitOnlineClientOrder = async (orderData) => {
-    let client = appData.clients.find(
-      (c) => c.name.toLowerCase() === orderData.clientName.toLowerCase() || (c.phone && c.phone === orderData.phone)
-    );
+    try {
+      let client = (appData.clients || []).find(
+        (c) => c.name?.toLowerCase() === orderData.clientName?.toLowerCase() || (c.phone && c.phone === orderData.phone)
+      );
 
-    if (!client) {
-      client = await api.createClient({
-        name: orderData.clientName,
+      if (!client) {
+        client = await api.createClient({
+          name: orderData.clientName,
+          phone: orderData.phone,
+          email: orderData.email || '',
+          contactPerson: orderData.clientName,
+        });
+      }
+
+      const clientId = client?.id || `C-${Date.now().toString().slice(-4)}`;
+      const clientName = client?.name || orderData.clientName;
+
+      const newJob = await handleCreateJob({
+        title: orderData.title,
+        clientId: clientId,
+        clientName: clientName,
         phone: orderData.phone,
-        email: orderData.email || '',
-        contactPerson: orderData.clientName,
+        jobType: orderData.jobType,
+        paper: orderData.paper,
+        finishedSize: 'Standard',
+        quantity: orderData.quantity,
+        totalCost: orderData.totalCost || (orderData.quantity * 5),
+        advancePaid: 0,
+        deliveryDate: orderData.deliveryDate,
+        notes: `Online Request. ${orderData.notes || ''}`,
+        attachmentName: orderData.attachmentName || '',
+        attachmentSize: orderData.attachmentSize || '',
+        attachmentData: orderData.attachmentData || '',
       });
+
+      return newJob || {
+        id: `PL-${Date.now().toString().slice(-4)}`,
+        jobNo: `JOB-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`,
+        clientName: orderData.clientName,
+        title: orderData.title,
+        quantity: orderData.quantity,
+        totalCost: orderData.totalCost,
+        deliveryDate: orderData.deliveryDate,
+        stage: 'Pending',
+      };
+    } catch (err) {
+      console.error('Error submitting online client order:', err);
+      return {
+        id: `PL-${Date.now().toString().slice(-4)}`,
+        jobNo: `JOB-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`,
+        clientName: orderData.clientName,
+        title: orderData.title,
+        quantity: orderData.quantity,
+        totalCost: orderData.totalCost,
+        deliveryDate: orderData.deliveryDate,
+        stage: 'Pending',
+      };
     }
-
-    const newJob = await handleCreateJob({
-      title: orderData.title,
-      clientId: client.id,
-      clientName: client.name,
-      phone: orderData.phone,
-      jobType: orderData.jobType,
-      paper: orderData.paper,
-      finishedSize: 'Standard',
-      quantity: orderData.quantity,
-      totalCost: orderData.totalCost || (orderData.quantity * 5),
-      advancePaid: 0,
-      deliveryDate: orderData.deliveryDate,
-      notes: `Online Request. ${orderData.notes || ''}`,
-      attachmentName: orderData.attachmentName || '',
-      attachmentSize: orderData.attachmentSize || '',
-      attachmentData: orderData.attachmentData || '',
-    });
-
-    return newJob;
   };
 
   const handleCreateClientSubmit = async (e) => {

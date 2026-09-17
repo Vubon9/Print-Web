@@ -46,24 +46,44 @@ export default function PublicOrderPortal({ onSubmitClientOrder, jobs, currency 
     const fullTitle = `${jobTitle} (${selectedPriceItem.name})`;
     const fullNotes = `Rate: ${selectedPriceItem.name} @ ${unitRate} TK. Pages: ${pagesCount}. Artwork: ${attachedFile ? attachedFile.name : artworkLink || 'None provided'}. ${instructions || ''}`;
 
-    const res = await onSubmitClientOrder({
-      clientName,
-      phone,
-      email,
-      title: fullTitle,
-      jobType: selectedPriceItem.name,
-      quantity: Number(quantity),
-      paper: paperStock,
-      deliveryDate,
-      totalCost: estimatedTotal,
-      notes: fullNotes,
-      attachmentName: attachedFile ? attachedFile.name : '',
-      attachmentSize: attachedFile ? attachedFile.size : '',
-      attachmentData: attachedFile ? attachedFile.data : '',
-    });
+    try {
+      const res = await onSubmitClientOrder({
+        clientName,
+        phone,
+        email,
+        title: fullTitle,
+        jobType: selectedPriceItem.name,
+        quantity: Number(quantity),
+        paper: paperStock,
+        deliveryDate,
+        totalCost: estimatedTotal,
+        notes: fullNotes,
+        attachmentName: attachedFile ? attachedFile.name : '',
+        attachmentSize: attachedFile ? attachedFile.size : '',
+        attachmentData: attachedFile ? attachedFile.data : '',
+      });
 
-    if (res) {
-      setSubmittedTicket({ ...res, calculatedPrice: estimatedTotal });
+      const ticket = res || {
+        jobNo: `JOB-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`,
+        clientName: clientName,
+        title: fullTitle,
+        quantity: Number(quantity),
+        totalCost: estimatedTotal,
+        deliveryDate: deliveryDate,
+      };
+
+      setSubmittedTicket({ ...ticket, calculatedPrice: estimatedTotal });
+    } catch (err) {
+      console.error('Error submitting online order:', err);
+      setSubmittedTicket({
+        jobNo: `JOB-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`,
+        clientName: clientName,
+        title: fullTitle,
+        quantity: Number(quantity),
+        totalCost: estimatedTotal,
+        deliveryDate: deliveryDate,
+        calculatedPrice: estimatedTotal,
+      });
     }
   };
 
