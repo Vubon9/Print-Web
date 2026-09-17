@@ -88,7 +88,7 @@ function App() {
       setAdminError('');
       setActiveTab('dashboard'); // Switch to Dashboard after successful Admin login
     } else {
-      setAdminError('Invalid Admin PIN! Default PIN is 1234');
+      setAdminError('Invalid Admin PIN! Please try again.');
     }
   };
 
@@ -327,16 +327,13 @@ function App() {
                     type="password"
                     className="form-control mono"
                     style={{ fontSize: '1.5rem', letterSpacing: '0.5rem', textAlign: 'center' }}
-                    placeholder="****"
+                    placeholder="******"
                     maxLength="6"
                     value={adminPinInput}
                     onChange={(e) => setAdminPinInput(e.target.value)}
                     autoFocus
                     required
                   />
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.4rem' }}>
-                    Default PIN: <strong>1234</strong>
-                  </div>
                 </div>
 
                 {adminError && (

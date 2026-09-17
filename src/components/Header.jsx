@@ -80,7 +80,7 @@ export default function Header({
             onClick={onOpenAdminLogin}
           >
             <Lock size={15} />
-            <span>Manager Login (PIN: 1234)</span>
+            <span>Manager Login</span>
           </button>
         )}
 

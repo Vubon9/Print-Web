@@ -49,7 +49,7 @@ export const api = {
     });
     if (res && res.success) return true;
     // Local fallback PIN check
-    return pin === '1234';
+    return pin === '203317';
   },
 
   // ----------------------------------------------------

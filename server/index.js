@@ -16,8 +16,8 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// Default Admin PIN (can be customized)
-const ADMIN_PIN = '1234';
+// Secret Admin PIN
+const ADMIN_PIN = '203317';
 
 // Initialize Database Storage File
 const DEFAULT_DATA = {
@@ -55,7 +55,7 @@ function writeDB(data) {
 // Admin PIN Authentication Endpoint
 app.post('/api/admin/login', (req, res) => {
   const { pin } = req.body;
-  if (pin === ADMIN_PIN || pin === '1234') {
+  if (pin === ADMIN_PIN) {
     res.json({ success: true, message: 'Admin authenticated successfully' });
   } else {
     res.status(401).json({ success: false, message: 'Invalid Admin PIN' });
